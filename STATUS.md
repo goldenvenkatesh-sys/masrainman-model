@@ -11,16 +11,12 @@
   to the domain. GFS was tried first and dropped in favour of ECMWF (same model family as ERA5). They need a real trained checkpoint to be useful:
   `python -m masrainman.live_forecast --ckpt D:/masrainman_runs/baseline/best.pt --plot`
 
-## Blocked right now (28 Oct 2026, 17:00 IST)
-Copernicus updated its Terms of Use to rev. 13 today. Every request returns
-403 "user didn't accept all required site policies" until the account shows rev. 13.
-The account (goldenvenkatesh@gmail.com) was accepted twice: it showed rev. 13 at 16:52,
-then fell back to rev. 11 at 16:57. This looks like a CDS-side fault; report it to
-ECMWF Support (error id 30350e06-6ace-48ee-96b1-668e29ede07e).
-- Queued request for `sfc_2018.nc`: `64669d94-55f5-4cd7-b9bf-da64565ef2fb` (saved in
-  `D:\masrainman_data\raw\2018\sfc_2018.job`; the downloader rejoins it automatically).
-- The download window retries every 5 minutes and continues by itself once CDS is fixed.
-- Check the terms revision: open https://cds.climate.copernicus.eu/licences/terms-of-use-cds
+## Download progress (28 Oct 2026, 20:05 IST)
+- The CDS Terms of Use rev. 13 block is resolved (the account shows rev. 13 since ~19:50).
+- Done: `static.nc`, `sfc_2018.nc` (203 MB).
+- Each year needs 6 requests: sfc, pressure levels at 200 / 500 hPa (one each), 850 hPa
+  (two half-year chunks, merged automatically), and hourly rain. 36 requests for 2018-2023.
+- Now queued: `pl_2018_200hPa`. Live log: `D:\masrainman_data\download.log`.
 
 ## Resume from the last point (e.g. Saturday night)
 The downloader skips every file that is already complete, so just run it again.
@@ -35,7 +31,7 @@ powershell -ExecutionPolicy Bypass -File scripts\download_era5.ps1
 The script runs in its own window (it survives Claude app disconnects), retries after errors
 every 5 minutes, and logs to `D:\masrainman_data\download.log`.
 Check progress: files land in `D:\masrainman_data\raw\<year>\` as `sfc_YYYY.nc`,
-`pl_YYYY.nc` and `tp_YYYY.nc` - one file per type per year (18 files in total, plus `static.nc`).
+`pl_YYYY.nc` and `tp_YYYY.nc` - one file per type per year (18 files in total, plus `static.nc`; pressure levels arrive as per-level pieces first).
 
 ## Next steps after the download
 ```
@@ -49,7 +45,7 @@ Training also resumes: stop with Ctrl+C, then rerun with `--resume`.
 Then daily live forecasts: `powershell -ExecutionPolicy Bypass -File scripts\live_daily.ps1`
 (add it to Windows Task Scheduler at 14:00 IST for the 00 UTC run, 02:00 IST for 12 UTC).
 
-Checks: `python -m pytest -q tests` (7 tests, all passing on 28 Oct 2026).
+Checks: `python -m pytest -q tests` (8 tests, all passing on 28 Oct 2026).
 
 ## Gotchas found so far
 - CDS key: the downloader reads `%USERPROFILE%\.cdsapirc` explicitly, because an old
