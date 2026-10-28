@@ -13,6 +13,8 @@ Usage:
 Files already downloaded are skipped, so you can stop and restart any time.
 """
 import argparse
+import os
+from pathlib import Path
 
 import cdsapi
 
@@ -20,6 +22,14 @@ from .config import CDS_NAMES, CHANNEL_INFO, all_years, load_config, raw_dir
 
 SINGLE = "reanalysis-era5-single-levels"
 PRESSURE = "reanalysis-era5-pressure-levels"
+
+
+def cds_client():
+    """Use the key in .cdsapirc explicitly. Otherwise the library may pick up an
+    older ~/.ecmwfdatastoresrc first and fail with 401."""
+    rc = Path(os.environ.get("CDSAPI_RC", Path.home() / ".cdsapirc"))
+    conf = dict(line.split(":", 1) for line in rc.read_text().splitlines() if ":" in line)
+    return cdsapi.Client(url=conf["url"].strip(), key=conf["key"].strip())
 
 
 def base_request(cfg, year, month, times):
@@ -100,7 +110,7 @@ def main():
 
     cfg = load_config(args.config)
     years = range(args.years[0], args.years[1] + 1) if args.years else all_years(cfg)
-    client = cdsapi.Client()
+    client = cds_client()
     download_static(client, cfg)
     for year in years:
         print(f"{year}:")
