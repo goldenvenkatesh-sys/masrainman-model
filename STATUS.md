@@ -11,6 +11,17 @@
   to the domain. GFS was tried first and dropped in favour of ECMWF (same model family as ERA5). They need a real trained checkpoint to be useful:
   `python -m masrainman.live_forecast --ckpt D:/masrainman_runs/baseline/best.pt --plot`
 
+## Blocked right now (28 Oct 2026, 17:00 IST)
+Copernicus updated its Terms of Use to rev. 13 today. Every request returns
+403 "user didn't accept all required site policies" until the account shows rev. 13.
+The account (goldenvenkatesh@gmail.com) was accepted twice: it showed rev. 13 at 16:52,
+then fell back to rev. 11 at 16:57. This looks like a CDS-side fault; report it to
+ECMWF Support (error id 30350e06-6ace-48ee-96b1-668e29ede07e).
+- Queued request for `sfc_2018.nc`: `64669d94-55f5-4cd7-b9bf-da64565ef2fb` (saved in
+  `D:\masrainman_data\raw\2018\sfc_2018.job`; the downloader rejoins it automatically).
+- The download window retries every 5 minutes and continues by itself once CDS is fixed.
+- Check the terms revision: open https://cds.climate.copernicus.eu/licences/terms-of-use-cds
+
 ## Resume from the last point (e.g. Saturday night)
 The downloader skips every file that is already complete, so just run it again.
 Half-finished files end in `.part` and are downloaded again automatically. Each queued
