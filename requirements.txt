@@ -11,3 +11,4 @@ matplotlib
 torch
 eccodes
 ecmwf-opendata
+pytest

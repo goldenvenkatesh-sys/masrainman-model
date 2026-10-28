@@ -35,6 +35,11 @@ python -m masrainman.evaluate --ckpt D:/masrainman_runs/baseline/best.pt
 ```
 Training also resumes: stop with Ctrl+C, then rerun with `--resume`.
 
+Then daily live forecasts: `powershell -ExecutionPolicy Bypass -File scripts\live_daily.ps1`
+(add it to Windows Task Scheduler at 14:00 IST for the 00 UTC run, 02:00 IST for 12 UTC).
+
+Checks: `python -m pytest -q tests` (7 tests, all passing on 28 Oct 2026).
+
 ## Gotchas found so far
 - CDS key: the downloader reads `%USERPROFILE%\.cdsapirc` explicitly, because an old
   `%USERPROFILE%\.ecmwfdatastoresrc` holds an outdated key that the library would use first (401 error).

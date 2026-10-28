@@ -79,14 +79,21 @@ masrainman/train.py         CPU training with rollout fine-tuning
 masrainman/forecast.py      10-day forecast + hourly first-24-h file (netCDF)
 masrainman/evaluate.py      RMSE vs persistence, rain CSI, per lead time
 masrainman/plot.py          maps (temperature/MSLP, wind, rain, moisture)
-scripts/make_synthetic.py fake data for testing
+masrainman/ecmwf.py         ECMWF open data: download, crop, start state + boundaries
+masrainman/live_forecast.py live 10-day forecast from the latest ECMWF run
+scripts/download_era5.ps1   ERA5 download in its own window, with retries and a log
+scripts/live_daily.ps1      daily live forecast for Windows Task Scheduler
+scripts/make_synthetic.py   fake data for testing
+tests/                      pytest checks (units, rain totals, boundary ring, ECMWF rain)
 ```
+
+Run the tests with `python -m pytest -q tests` (needs `pip install pytest`; about 30 s).
 
 ## Roadmap
 1. ✅ Pipeline: download → preprocess → train → evaluate → forecast → maps
 2. Train on real ERA5 and beat persistence at every lead time
 3. ✅ Live forecasts from ECMWF open data (`python -m masrainman.live_forecast --ckpt ... --plot`);
-   still to do: run them on a schedule
+   `scripts/live_daily.ps1` is ready for Task Scheduler once a model is trained
 4. Check against IMD station and rain-gauge observations
 5. A true hourly model for 0–24 h (train with `step_hours: 1`)
 6. Better rain: ensembles or a probabilistic loss
