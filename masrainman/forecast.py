@@ -7,7 +7,7 @@ Writes two netCDF files to <run_dir>/forecasts/:
   fc_<init>_hourly24.nc  hourly for the first 24 h (time-interpolated from the 6-h steps)
 
 Hindcast mode takes the boundary ring from ERA5, i.e. "perfect boundaries".
-Live forecasts will take it from GFS instead (next milestone).
+Live forecasts take it from ECMWF open data instead (see live_forecast.py).
 """
 import argparse
 

@@ -6,8 +6,9 @@
   `goldenvenkatesh-sys/masrainman` is separate and must not be force-pushed.
 - Years in `config.yaml`: train 2018–2021, val 2022, test 2023.
 - ERA5 download for 2018–2023 started 28 Oct 2026 15:27. `static.nc` arrived and matches the grid.
-- Live forecasts from NOAA GFS work (`masrainman/gfs.py`, `masrainman/live_forecast.py`), tested on
-  the 2026-10-28 00 UTC run with a test checkpoint. They need a real trained checkpoint to be useful:
+- Live forecasts from ECMWF open data work (`masrainman/ecmwf.py`, `masrainman/live_forecast.py`),
+  tested on the 2026-10-28 00 UTC run with a test checkpoint. About 430 MB of downloads per run, cut
+  to the domain. GFS was tried first and dropped in favour of ECMWF (same model family as ERA5). They need a real trained checkpoint to be useful:
   `python -m masrainman.live_forecast --ckpt D:/masrainman_runs/baseline/best.pt --plot`
 
 ## Resume from the last point (e.g. Saturday night)

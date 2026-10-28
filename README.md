@@ -21,7 +21,7 @@ A data-driven regional weather model for South India. It forecasts from 0 to 10 
 - **Model**: a U-Net (1.2 M parameters) that predicts the 6-hour change of every field
   from the last two states. It is run 40 times for a 10-day forecast.
 - **Boundaries**: like a regional NWP model, the outer 2° ring is taken from a global
-  source: ERA5 in training and hindcasts, and GFS for live forecasts (to do).
+  source: ERA5 in training and hindcasts, and ECMWF open data (00/12 UTC runs) for live forecasts.
 - **Data**: ERA5 reanalysis, 2010–2023 (train 2010–20, validate 2021, test 2022–23).
 
 ## Hardware notes (this laptop: i3-1115G4, 8 GB RAM, no GPU)
@@ -85,7 +85,8 @@ scripts/make_synthetic.py fake data for testing
 ## Roadmap
 1. ✅ Pipeline: download → preprocess → train → evaluate → forecast → maps
 2. Train on real ERA5 and beat persistence at every lead time
-3. Live forecasts: fetch GFS each day (start state + boundary ring) and run on a schedule
+3. ✅ Live forecasts from ECMWF open data (`python -m masrainman.live_forecast --ckpt ... --plot`);
+   still to do: run them on a schedule
 4. Check against IMD station and rain-gauge observations
 5. A true hourly model for 0–24 h (train with `step_hours: 1`)
 6. Better rain: ensembles or a probabilistic loss

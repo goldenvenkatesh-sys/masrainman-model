@@ -7,7 +7,7 @@ run_dir: D:/masrainman_runs       # checkpoints, logs, forecasts
 # Model domain. It is larger than South India so weather systems coming from the
 # Bay of Bengal / Arabian Sea are inside the grid. The outer ring of
 # `boundary_width` cells is driven by boundary data (ERA5 in training/hindcast,
-# GFS in live forecasts), like a classic regional model.
+# ECMWF open data in live forecasts), like a classic regional model.
 domain:
   north: 25.0
   south: 0.0
