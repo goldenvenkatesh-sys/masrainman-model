@@ -9,3 +9,4 @@ runs/
 *.pt
 *.part
 config.synthetic.yaml
+*.job

@@ -10,18 +10,21 @@ One-time setup:
 Usage:
   python -m masrainman.download_era5                     # all years in config.yaml
   python -m masrainman.download_era5 --years 2022 2023   # a range
-Files already downloaded are skipped, so you can stop and restart any time.
+Files already downloaded are skipped, so you can stop and restart any time. Each
+submitted request's ID is saved next to its file (<name>.job), so a restart picks
+up the same queued request instead of sending a duplicate.
 """
 import argparse
 import os
 from pathlib import Path
 
-import cdsapi
+from ecmwf.datastores import Client
 
 from .config import CDS_NAMES, CHANNEL_INFO, all_years, load_config, raw_dir
 
 SINGLE = "reanalysis-era5-single-levels"
 PRESSURE = "reanalysis-era5-pressure-levels"
+DEAD = ("failed", "rejected", "dismissed", "deleted")
 
 
 def cds_client():
@@ -29,7 +32,7 @@ def cds_client():
     older ~/.ecmwfdatastoresrc first and fail with 401."""
     rc = Path(os.environ.get("CDSAPI_RC", Path.home() / ".cdsapirc"))
     conf = dict(line.split(":", 1) for line in rc.read_text().splitlines() if ":" in line)
-    return cdsapi.Client(url=conf["url"].strip(), key=conf["key"].strip())
+    return Client(url=conf["url"].strip(), key=conf["key"].strip())
 
 
 def base_request(cfg, year, months, times):
@@ -53,9 +56,26 @@ def retrieve(client, dataset, request, target):
         return
     target.parent.mkdir(parents=True, exist_ok=True)
     part = target.with_suffix(".part")
-    print(f"  requesting {target.name} ...")
-    client.retrieve(dataset, request, str(part))
+    job = target.with_suffix(".job")
+    remote = None
+    if job.exists():
+        try:
+            remote = client.get_remote(job.read_text().strip())
+            if remote.status in DEAD:
+                print(f"  earlier request for {target.name} {remote.status}; sending a new one")
+                remote = None
+            else:
+                print(f"  {target.name}: reattached to queued request {remote.request_id[:8]} ({remote.status})")
+        except Exception as e:  # request expired or was cancelled on the website
+            print(f"  earlier request for {target.name} not found ({e}); sending a new one")
+            remote = None
+    if remote is None:
+        print(f"  requesting {target.name} ...")
+        remote = client.submit(dataset, request)
+        job.write_text(remote.request_id)
+    remote.download(str(part))  # waits in the CDS queue, then downloads
     part.replace(target)
+    job.unlink()
 
 
 def needed_variables(cfg):
