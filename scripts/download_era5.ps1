@@ -4,6 +4,15 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\download_era5.ps1 -First 2018 -Last 2023
 param([int]$First = 2018, [int]$Last = 2023, [string]$Log = "D:\masrainman_data\download.log")
 
+# Only one download at a time: Copernicus may disable accounts that send parallel requests.
+$others = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
+    $_.ProcessId -ne $PID -and $_.CommandLine -match '-File\s+"?[^"]*download_era5\.ps1'
+}
+if ($others) {
+    Write-Host "An ERA5 download is already running (process $($others[0].ProcessId)); not starting another."
+    exit 0
+}
+
 Set-Location (Split-Path $PSScriptRoot -Parent)
 New-Item -ItemType Directory -Force (Split-Path $Log) | Out-Null
 $Host.UI.RawUI.WindowTitle = "MasRainMan ERA5 download $First-$Last"
