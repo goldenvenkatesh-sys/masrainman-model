@@ -104,22 +104,28 @@ def main():
         raise SystemExit(f"ERA5 missing for {len(missing)} times (first {missing[0]}); "
                          "hindcasts need data from init-6h to the last valid time.")
 
+    run_and_save(cfg, model, arch, stats, init, n_steps, run_dir(cfg, "forecasts"),
+                 "hindcast with ERA5 boundaries")
+
+
+def run_and_save(cfg, model, arch, stats, init, n_steps, out, note):
+    """Forecast from `init` using `arch` for the start and boundary data; write both netCDF files."""
     fc = to_physical(cfg, stats, rollout(model, arch, stats, [init], n_steps)[0])
     analysis = to_physical(cfg, stats, stats.norm(arch.get(init))[None])
     fields = np.concatenate([analysis, fc])
     lead = np.arange(n_steps + 1) * cfg["step_hours"]
 
-    out = run_dir(cfg, "forecasts")
     tag = pd.Timestamp(init).strftime("%Y%m%d%H")
     path = out / f"fc_{tag}.nc"
-    make_dataset(cfg, fields, init, lead, "hindcast with ERA5 boundaries").to_netcdf(path)
+    make_dataset(cfg, fields, init, lead, note).to_netcdf(path)
     hours, hourly = hourly_first_day(cfg, fields)
-    ds_h = make_dataset(cfg, hourly, init, hours, "hourly values interpolated from 6-hourly model steps")
+    ds_h = make_dataset(cfg, hourly, init, hours, note + "; hourly values interpolated from 6-hourly model steps")
     if "tp" in cfg["channels"]:
         ds_h["tp"].attrs["units"] = "mm per h"
     ds_h.to_netcdf(out / f"fc_{tag}_hourly24.nc")
     print(f"wrote {path}")
     print(f"wrote {out / f'fc_{tag}_hourly24.nc'}")
+    return path
 
 
 if __name__ == "__main__":

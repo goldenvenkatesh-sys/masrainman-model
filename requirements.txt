@@ -9,3 +9,4 @@ matplotlib
 # CPU build of PyTorch (no GPU on this machine):
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 torch
+eccodes
