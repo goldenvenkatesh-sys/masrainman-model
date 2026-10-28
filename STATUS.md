@@ -5,7 +5,10 @@
 - Repo: https://github.com/goldenvenkatesh-sys/masrainman-model (private). The live app repo
   `goldenvenkatesh-sys/masrainman` is separate and must not be force-pushed.
 - Years in `config.yaml`: train 2018–2021, val 2022, test 2023.
-- ERA5 download for 2018–2023 started 28 Oct 2026 15:27 (first request succeeded).
+- ERA5 download for 2018–2023 started 28 Oct 2026 15:27. `static.nc` arrived and matches the grid.
+- Live forecasts from NOAA GFS work (`masrainman/gfs.py`, `masrainman/live_forecast.py`), tested on
+  the 2026-10-28 00 UTC run with a test checkpoint. They need a real trained checkpoint to be useful:
+  `python -m masrainman.live_forecast --ckpt D:/masrainman_runs/baseline/best.pt --plot`
 
 ## Resume from the last point (e.g. Saturday night)
 The downloader skips every file that is already complete, so just run it again.
