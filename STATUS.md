@@ -16,22 +16,21 @@
 - Done: `static.nc`, `sfc_2018.nc` (203 MB).
 - Each year needs 6 requests: sfc, pressure levels at 200 / 500 hPa (one each), 850 hPa
   (two half-year chunks, merged automatically), and hourly rain. 36 requests for 2018-2023.
-- Now queued: `pl_2018_200hPa`. Live log: `D:\masrainman_data\download.log`.
+- 22:15: 2018 surface, 200/500 hPa and 850 hPa Jan-Jun done; 850 hPa Jul-Dec queued. Live log: `D:\masrainman_data\download.log`.
 
-## Resume from the last point (e.g. Saturday night)
-The downloader skips every file that is already complete, so just run it again.
-Half-finished files end in `.part` and are downloaded again automatically. Each queued
-request's ID is kept in a `.job` file, so a restart rejoins the same request (no duplicates).
+## Resume from the last point
+**Automatic since 28 Oct 2026:** the download starts by itself at every Windows login
+(shortcut "MasRainMan ERA5 download" in the Startup folder, made by
+`scripts\install_autostart.ps1`; remove with `-Remove`). It runs from the permanent copy
+`D:\masrainman-model` (a clone of this repo; `D:\masrainman` is a separate folder of the
+user's web app). Just switch the laptop on and log in.
 
-```
-git clone https://github.com/goldenvenkatesh-sys/masrainman-model.git D:\masrainman
-cd D:\masrainman
-powershell -ExecutionPolicy Bypass -File scripts\download_era5.ps1
-```
-The script runs in its own window (it survives Claude app disconnects), retries after errors
-every 5 minutes, and logs to `D:\masrainman_data\download.log`.
-Check progress: files land in `D:\masrainman_data\raw\<year>\` as `sfc_YYYY.nc`,
-`pl_YYYY.nc` and `tp_YYYY.nc` - one file per type per year (18 files in total, plus `static.nc`; pressure levels arrive as per-level pieces first).
+The downloader skips every finished file and rejoins queued requests via `.job` files, so
+restarts never send duplicates; a second copy exits at once if one is already running.
+To start it by hand: `powershell -ExecutionPolicy Bypass -File D:\masrainman-model\scripts\download_era5.ps1`
+Log: `D:\masrainman_data\download.log`. Files land in `D:\masrainman_dataaw\<year>\` as
+`sfc_YYYY.nc`, `pl_YYYY.nc` and `tp_YYYY.nc` (18 in total, plus `static.nc`; pressure levels
+arrive as per-level pieces first and are merged automatically).
 
 ## Next steps after the download
 ```
