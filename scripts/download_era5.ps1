@@ -10,7 +10,7 @@ $Host.UI.RawUI.WindowTitle = "MasRainMan ERA5 download $First-$Last"
 
 while ($true) {
     Add-Content $Log "=== $(Get-Date -Format s) starting download $First-$Last"
-    python -u -m masrainman.download_era5 --years $First $Last 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $Log -Append
+    python -u -m masrainman.download_era5 --years $First $Last 2>&1 | ForEach-Object { "$_"; Add-Content -Path $Log -Value "$_" }
     if ($LASTEXITCODE -eq 0) {
         Add-Content $Log "=== $(Get-Date -Format s) all files downloaded"
         Write-Host "All ERA5 files downloaded. You can close this window." -ForegroundColor Green

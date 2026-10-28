@@ -16,7 +16,7 @@ if (-not (Test-Path $Ckpt)) {
 }
 
 Add-Content $Log "=== $(Get-Date -Format s) live forecast"
-python -u -m masrainman.live_forecast --ckpt $Ckpt --plot 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $Log -Append
+python -u -m masrainman.live_forecast --ckpt $Ckpt --plot 2>&1 | ForEach-Object { "$_"; Add-Content -Path $Log -Value "$_" }
 $code = $LASTEXITCODE
 Add-Content $Log "=== $(Get-Date -Format s) finished with exit code $code"
 
