@@ -28,7 +28,8 @@ user's web app). Just switch the laptop on and log in.
 The downloader skips every finished file and rejoins queued requests via `.job` files, so
 restarts never send duplicates; a second copy exits at once if one is already running.
 To start it by hand: `powershell -ExecutionPolicy Bypass -File D:\masrainman-model\scripts\download_era5.ps1`
-Log: `D:\masrainman_data\download.log`. Files land in `D:\masrainman_dataaw\<year>\` as
+Log: `D:\masrainman_data\download.log`. Files land in `D:\masrainman_data
+aw\<year>\` as
 `sfc_YYYY.nc`, `pl_YYYY.nc` and `tp_YYYY.nc` (18 in total, plus `static.nc`; pressure levels
 arrive as per-level pieces first and are merged automatically).
 
