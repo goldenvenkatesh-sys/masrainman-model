@@ -32,12 +32,12 @@ def cds_client():
     return cdsapi.Client(url=conf["url"].strip(), key=conf["key"].strip())
 
 
-def base_request(cfg, year, month, times):
+def base_request(cfg, year, months, times):
     d = cfg["domain"]
     return {
         "product_type": ["reanalysis"],
         "year": [str(year)],
-        "month": [f"{month:02d}"],
+        "month": [f"{m:02d}" for m in months],
         "day": [f"{day:02d}" for day in range(1, 32)],
         "time": times,
         "area": [d["north"], d["west"], d["south"], d["east"]],
@@ -73,33 +73,35 @@ def needed_variables(cfg):
 
 
 def download_static(client, cfg):
-    req = base_request(cfg, 2020, 1, ["00:00"])
+    req = base_request(cfg, 2020, [1], ["00:00"])
     req["day"] = ["01"]
     req["variable"] = ["geopotential", "land_sea_mask"]
     retrieve(client, SINGLE, req, raw_dir(cfg) / "static.nc")
 
 
-def download_month(client, cfg, year, month):
+def download_year(client, cfg, year):
+    """One request per data type per year: far fewer trips through the CDS queue
+    than monthly requests (each request can wait in the queue for a long time)."""
     surface, pressure, levels = needed_variables(cfg)
     step = cfg["step_hours"]
     inst_times = [f"{h:02d}:00" for h in range(0, 24, step)]
+    months = range(1, 13)
     out = raw_dir(cfg) / str(year)
-    tag = f"{year}{month:02d}"
 
-    req = base_request(cfg, year, month, inst_times)
+    req = base_request(cfg, year, months, inst_times)
     req["variable"] = surface
-    retrieve(client, SINGLE, req, out / f"sfc_{tag}.nc")
+    retrieve(client, SINGLE, req, out / f"sfc_{year}.nc")
 
-    req = base_request(cfg, year, month, inst_times)
+    req = base_request(cfg, year, months, inst_times)
     req["variable"] = pressure
     req["pressure_level"] = levels
-    retrieve(client, PRESSURE, req, out / f"pl_{tag}.nc")
+    retrieve(client, PRESSURE, req, out / f"pl_{year}.nc")
 
     if "tp" in cfg["channels"]:
         # ERA5 rain is an hourly accumulation; we sum it to per-step totals later.
-        req = base_request(cfg, year, month, [f"{h:02d}:00" for h in range(24)])
+        req = base_request(cfg, year, months, [f"{h:02d}:00" for h in range(24)])
         req["variable"] = [CDS_NAMES["tp"]]
-        retrieve(client, SINGLE, req, out / f"tp_{tag}.nc")
+        retrieve(client, SINGLE, req, out / f"tp_{year}.nc")
 
 
 def main():
@@ -114,8 +116,7 @@ def main():
     download_static(client, cfg)
     for year in years:
         print(f"{year}:")
-        for month in range(1, 13):
-            download_month(client, cfg, year, month)
+        download_year(client, cfg, year)
 
 
 if __name__ == "__main__":

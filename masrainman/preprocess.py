@@ -48,21 +48,25 @@ def process_year(cfg, year, tp_tail=None):
     step = cfg["step_hours"]
     chans = cfg["channels"]
     src = raw_dir(cfg) / str(year)
+    paths = {k: src / f"{k}_{year}.nc" for k in ("sfc", "pl", "tp")}
+    if not all(p.exists() for p in paths.values()):
+        print(f"  {year}: files missing, skipped")
+        return None
+    # Files hold a whole year; xarray loads lazily, so we read one month at a time.
+    sfc_y, pl_y, tp_y = open_nc(paths["sfc"]), open_nc(paths["pl"]), open_nc(paths["tp"])["tp"]
+    check_grid(cfg, sfc_y, paths["sfc"])
     frames, times = [], []
     for month in range(1, 13):
         tag = f"{year}{month:02d}"
-        paths = {k: src / f"{k}_{tag}.nc" for k in ("sfc", "pl", "tp")}
-        if not all(p.exists() for p in paths.values()):
-            print(f"  {tag}: missing files, skipped")
-            tp_tail = None
-            continue
-        sfc, pl = open_nc(paths["sfc"]), open_nc(paths["pl"])
-        check_grid(cfg, sfc, paths["sfc"])
+        sfc = sfc_y.sel(time=sfc_y.time.dt.month == month)
+        pl = pl_y.sel(time=pl_y.time.dt.month == month)
         t_inst = sfc.time.values
+        if len(t_inst) == 0:
+            continue
 
         # Rain over the `step` hours ending at each time. ERA5 hourly tp at hour h
         # is the total for (h-1, h], in metres.
-        tp_h = open_nc(paths["tp"])["tp"]
+        tp_h = tp_y.sel(time=tp_y.time.dt.month == month)
         if tp_tail is not None:
             tp_h = xr.concat([tp_tail, tp_h], "time")
         acc = (tp_h.rolling(time=step).sum() * 1000.0).reindex(time=t_inst)

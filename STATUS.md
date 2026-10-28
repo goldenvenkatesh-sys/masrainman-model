@@ -20,8 +20,8 @@ git clone https://github.com/goldenvenkatesh-sys/masrainman-model.git D:\masrain
 cd D:\masrainman
 python -m masrainman.download_era5 --years 2018 2023
 ```
-Check progress: files land in `D:\masrainman_data\raw\<year>\` as `sfc_YYYYMM.nc`,
-`pl_YYYYMM.nc` and `tp_YYYYMM.nc` (216 files in total, plus `static.nc`).
+Check progress: files land in `D:\masrainman_data\raw\<year>\` as `sfc_YYYY.nc`,
+`pl_YYYY.nc` and `tp_YYYY.nc` - one file per type per year (18 files in total, plus `static.nc`).
 
 ## Next steps after the download
 ```
