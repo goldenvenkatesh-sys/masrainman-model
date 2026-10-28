@@ -25,10 +25,10 @@ focus:
 
 step_hours: 6                  # one model step; 10 days = 40 steps
 
-years:                         # inclusive ranges
-  train: [2010, 2020]
-  val: [2021, 2021]
-  test: [2022, 2023]
+years:                         # inclusive ranges; extend back to 2010 once this works
+  train: [2018, 2021]
+  val: [2022, 2022]
+  test: [2023, 2023]
 
 # Order matters: this is the channel order of every array and checkpoint.
 channels: [t2m, d2m, u10, v10, msl, tcwv, tp, z500, t850, q850, u850, v850, u200, v200]
