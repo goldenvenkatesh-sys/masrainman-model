@@ -1,0 +1,11 @@
+numpy
+pandas
+xarray
+netCDF4
+h5netcdf
+cdsapi>=0.7.2
+pyyaml
+matplotlib
+# CPU build of PyTorch (no GPU on this machine):
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+data/
+runs/
+*.nc
+*.npy
+*.npz
+*.pt
+*.part
+config.synthetic.yaml

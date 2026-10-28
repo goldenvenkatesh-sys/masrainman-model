@@ -1,0 +1,43 @@
+# MasRainMan - AI weather model for South India
+# All big data lives on D: (C: has too little free space).
+
+data_dir: D:/masrainman_data      # ERA5 raw + processed arrays (~1 GB per year)
+run_dir: D:/masrainman_runs       # checkpoints, logs, forecasts
+
+# Model domain. It is larger than South India so weather systems coming from the
+# Bay of Bengal / Arabian Sea are inside the grid. The outer ring of
+# `boundary_width` cells is driven by boundary data (ERA5 in training/hindcast,
+# GFS in live forecasts), like a classic regional model.
+domain:
+  north: 25.0
+  south: 0.0
+  west: 65.0
+  east: 95.0
+  grid: 0.25
+  boundary_width: 8            # grid cells (= 2 degrees)
+
+# South India box: weighted higher in the loss and used for scoring.
+focus:
+  north: 20.0
+  south: 8.0
+  west: 72.0
+  east: 88.0
+
+step_hours: 6                  # one model step; 10 days = 40 steps
+
+years:                         # inclusive ranges
+  train: [2010, 2020]
+  val: [2021, 2021]
+  test: [2022, 2023]
+
+# Order matters: this is the channel order of every array and checkpoint.
+channels: [t2m, d2m, u10, v10, msl, tcwv, tp, z500, t850, q850, u850, v850, u200, v200]
+
+model:
+  base_channels: 32
+
+train:
+  batch_size: 8
+  lr: 3.0e-4
+  threads: 4                   # CPU threads for PyTorch (i3-1115G4 has 4)
+  num_workers: 0
