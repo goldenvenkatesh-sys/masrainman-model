@@ -38,9 +38,14 @@ Model `D:\masrainman_runs\trial2\best.pt` (epoch 5); scores `D:\masrainman_runs\
 - Better: rain amount RMSE beats persistence at every lead (+19% day 1 ... +24% day 10; trial 1
   only days 1-3); z500 day 10 27.3 -> 22.8 m; no boundary seam.
 - Worse: heavy-rain CSI (day 1 0.35 -> 0.27, rain smoother); t2m beyond day 1 (day 3 2.10 -> 2.75 C).
-- Still unexplained: u850/v850/u200/v200/tcwv RMSE match trial 1 AND persistence to 2 decimals.
-  The new loss weights them far more, so they should have moved -> suspect a structural cause
-  (data or model), not just under-training. INVESTIGATE FIRST next session.
+- Winds/moisture near persistence: investigated 29 Oct evening, NOT a bug.
+  * Data aligned in time (u10-u850 correlation peaks at lag 0).
+  * 6-h changes are mostly unpredictable in the tropics: a linear model (2018 -> 2019, per
+    point, all 14 fields + tendency + time of day) explains msl 87%, z500 87%, t2m 58%, tp 28%,
+    v850 17%, u850 16%, q850 13%, tcwv 8%, u200 4%, v200 4% of the 6-h change.
+  * Simple advection by the 850 hPa wind is worse than persistence.
+  * Trial 2 explains only ~4% for u850 vs 16% for the linear model -> under-trained for winds
+    (1,100 steps), so more training/data should help.
 - Not done yet: stage 2 (4-step / 24-h fine-tune). Rerun with
   `python -m masrainman.train --config D:\masrainman_runs\trial\config.trial.yaml --name trial2 --resume --rollout 4 --epochs 1 --steps-per-epoch 120 --val-steps 15 --lr 5e-5`
 
