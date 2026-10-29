@@ -21,7 +21,7 @@ from .model import build_stepper
 
 
 def loss_weight(cfg):
-    """Ignore the forced ring, count South India double."""
+    """Ignore the forced ring (and the blend zone in proportion), count South India double."""
     w = (1 - boundary_mask(cfg)) * (1 + focus_mask(cfg))
     return torch.from_numpy(w / w.mean())[None, None]
 
@@ -37,7 +37,11 @@ def run_batches(model, loader, weight, rollout, max_steps, opt=None):
             target = seq[:, k + 2]
             # target is passed as the boundary source; the model only sees its outer ring
             pred = model(prev, now, target, tf[:, k])
-            loss = loss + ((pred - target) ** 2 * weight).mean()
+            # Errors in units of each field's typical one-step change: in plain normalised
+            # units a field that changes little per step (winds aloft) hardly counts, and
+            # the model learns to leave it unchanged.
+            err = (pred - target) / model.tend_scale
+            loss = loss + (err ** 2 * weight).mean()
             prev, now = now, pred
         loss = loss / rollout
         if opt is not None:

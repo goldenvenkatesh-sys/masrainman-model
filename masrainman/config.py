@@ -97,12 +97,16 @@ def grid(cfg):
 
 
 def boundary_mask(cfg):
+    """How much each cell is taken from boundary data: 1 on the outer half of the
+    `boundary_width` ring, fading linearly to 0 across the inner half (a relaxation
+    zone, as in regional NWP), so there is no hard seam between boundary and model."""
     lat, lon = grid(cfg)
     w = cfg["domain"]["boundary_width"]
-    m = np.zeros((len(lat), len(lon)), np.float32)
-    m[:w] = m[-w:] = 1
-    m[:, :w] = m[:, -w:] = 1
-    return m
+    H, W = len(lat), len(lon)
+    i, j = np.arange(H)[:, None], np.arange(W)[None, :]
+    dist = np.minimum(np.minimum(i, H - 1 - i), np.minimum(j, W - 1 - j))  # cells from the edge
+    full = w // 2
+    return np.clip((w - dist) / max(w - full, 1), 0, 1).astype(np.float32)
 
 
 def focus_mask(cfg):
