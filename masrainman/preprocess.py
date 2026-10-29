@@ -55,7 +55,13 @@ def process_year(cfg, year, tp_tail=None):
     # Files hold a whole year; xarray loads lazily, so we read one month at a time.
     sfc_y, pl_y, tp_y = open_nc(paths["sfc"]), open_nc(paths["pl"]), open_nc(paths["tp"])["tp"]
     check_grid(cfg, sfc_y, paths["sfc"])
-    frames, times = [], []
+    # Months are written straight to a file on disk, so only one month (~85 MB) is in
+    # memory at a time; a whole year (~1 GB) at once does not fit next to other apps.
+    out = processed_dir(cfg)
+    tmp_path = out / f"{year}.partial.npy"
+    shape = (sfc_y.sizes["time"], len(chans), sfc_y.sizes["latitude"], sfc_y.sizes["longitude"])
+    buf = np.lib.format.open_memmap(tmp_path, mode="w+", dtype=np.float32, shape=shape)
+    n, times = 0, []
     for month in range(1, 13):
         tag = f"{year}{month:02d}"
         sfc = sfc_y.sel(time=sfc_y.time.dt.month == month)
@@ -87,14 +93,22 @@ def process_year(cfg, year, tp_tail=None):
                                  "incomplete; delete it and download it again")
 
         ok = ~np.isnan(frame).any(axis=(1, 2, 3))  # first steps of the record have no rain history
-        frames.append(frame[ok])
+        k = int(ok.sum())
+        buf[n:n + k] = frame[ok]
+        n += k
         times.append(t_inst[ok])
-        print(f"  {tag}: {ok.sum()} times")
+        print(f"  {tag}: {k} times")
 
-    if frames:
-        out = processed_dir(cfg)
-        np.save(out / f"{year}.npy", np.concatenate(frames))
-        np.save(out / f"{year}_times.npy", np.concatenate(times).astype("datetime64[h]"))
+    # Copy the filled rows to the final file in small blocks (rows without rain
+    # history were dropped, so the year can be a little shorter than the buffer).
+    final = np.lib.format.open_memmap(out / f"{year}.npy", mode="w+", dtype=np.float32, shape=(n,) + shape[1:])
+    for i in range(0, n, 100):
+        j = min(i + 100, n)
+        final[i:j] = buf[i:j]
+    final.flush()
+    del final, buf
+    tmp_path.unlink()
+    np.save(out / f"{year}_times.npy", np.concatenate(times).astype("datetime64[h]"))
     return tp_tail
 
 
@@ -113,15 +127,16 @@ def compute_stats(cfg, stride=4):
         data = np.load(path, mmap_mode="r")
         times = np.load(proc / f"{year}_times.npy")
         idx = np.arange(0, len(data) - 1, stride)
-        x = np.asarray(data[idx], dtype=np.float64)
-        s += x.sum((0, 2, 3))
-        ss += (x ** 2).sum((0, 2, 3))
-        n += x.shape[0] * x.shape[2] * x.shape[3]
-        idx = idx[times[idx + 1] - times[idx] == step]
-        d = np.asarray(data[idx + 1], dtype=np.float64) - np.asarray(data[idx], dtype=np.float64)
-        ds += d.sum((0, 2, 3))
-        dss += (d ** 2).sum((0, 2, 3))
-        dn += d.shape[0] * d.shape[2] * d.shape[3]
+        for block in np.array_split(idx, max(1, len(idx) // 40)):  # ~40 samples at a time keeps RAM low
+            x = np.asarray(data[block], dtype=np.float64)
+            s += x.sum((0, 2, 3))
+            ss += (x ** 2).sum((0, 2, 3))
+            n += x.shape[0] * x.shape[2] * x.shape[3]
+            block = block[times[block + 1] - times[block] == step]
+            d = np.asarray(data[block + 1], dtype=np.float64) - np.asarray(data[block], dtype=np.float64)
+            ds += d.sum((0, 2, 3))
+            dss += (d ** 2).sum((0, 2, 3))
+            dn += d.shape[0] * d.shape[2] * d.shape[3]
     if n == 0:
         raise RuntimeError("No processed training years found - run preprocessing first.")
     mean = s / n
