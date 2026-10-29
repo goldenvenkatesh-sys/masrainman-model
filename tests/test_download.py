@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from masrainman.config import grid, processed_dir, raw_dir
+from masrainman.config import CHANNEL_INFO, grid, processed_dir, raw_dir
 from masrainman.download_era5 import combine, pressure_by_level
 from masrainman.preprocess import process_static, process_year
 from test_preprocess import write_fake_year
@@ -16,10 +16,15 @@ SHORT = {"geopotential": "z", "temperature": "t", "specific_humidity": "q",
          "u_component_of_wind": "u", "v_component_of_wind": "v"}
 
 
+def value(short, level):
+    """Different at every level, so a field taken from the wrong level is caught."""
+    return VALUES[short] + int(level) / 100.0
+
+
 def write_level_chunk(path, cfg, level, variables, times):
     lat, lon = grid(cfg)
     dims = ("valid_time", "pressure_level", "latitude", "longitude")
-    data = {SHORT[v]: (dims, np.full((len(times), 1, len(lat), len(lon)), VALUES[SHORT[v]], np.float32))
+    data = {SHORT[v]: (dims, np.full((len(times), 1, len(lat), len(lon)), value(SHORT[v], level), np.float32))
             for v in variables}
     xr.Dataset(data, coords={"valid_time": times, "pressure_level": [int(level)],
                              "latitude": lat, "longitude": lon}).to_netcdf(path)
@@ -52,7 +57,12 @@ def test_chunks_and_levels_recombine(cfg):
     process_year(cfg, 2019)
     data = np.load(processed_dir(cfg) / "2019.npy")
     ch = cfg["channels"]
-    np.testing.assert_allclose(data[:, ch.index("z500")], 57000 / 9.80665, rtol=1e-6)
-    np.testing.assert_allclose(data[:, ch.index("t850")], 290 - 273.15, rtol=1e-5)
-    np.testing.assert_allclose(data[:, ch.index("u200")], 5.0)
+    assert len(data) == len(jan) + len(feb) - 1  # only 00 UTC on 1 Jan lacks rain history
     assert np.isfinite(data).all()
+    for name in ch:  # every pressure-level channel must come from its own level
+        info = CHANNEL_INFO[name]
+        if info["level"] is None:
+            continue
+        raw = value(info["var"], info["level"])
+        expected = info["convert"](raw) if info["convert"] else raw
+        np.testing.assert_allclose(data[:, ch.index(name)], expected, rtol=1e-5, err_msg=name)

@@ -82,6 +82,9 @@ def process_year(cfg, year, tp_tail=None):
             else:
                 a = pl[info["var"]].sel(level=info["level"]).values
             frame[:, ci] = info["convert"](a) if info["convert"] else a
+            if name != "tp" and np.isnan(frame[:, ci]).all():
+                raise ValueError(f"{tag}: {name} is missing for the whole month - the raw file is "
+                                 "incomplete; delete it and download it again")
 
         ok = ~np.isnan(frame).any(axis=(1, 2, 3))  # first steps of the record have no rain history
         frames.append(frame[ok])

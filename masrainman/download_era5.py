@@ -123,7 +123,9 @@ def combine(parts, target, how):
             dim = "valid_time" if "valid_time" in dss[0].dims else "time"
             ds = xr.concat(dss, dim=dim)
         else:
-            ds = xr.merge(dss, join="outer", compat="override")
+            # no_conflicts fills each level from the file that has it; "override" would
+            # keep only the first file's copy of a field present at several levels (u, v).
+            ds = xr.merge(dss, join="outer", compat="no_conflicts")
         tmp = target.with_suffix(".tmp")
         ds.to_netcdf(tmp)
     finally:
