@@ -49,6 +49,18 @@ Model `D:\masrainman_runs\trial2\best.pt` (epoch 5); scores `D:\masrainman_runs\
 - Not done yet: stage 2 (4-step / 24-h fine-tune). Rerun with
   `python -m masrainman.train --config D:\masrainman_runs\trial\config.trial.yaml --name trial2 --resume --rollout 4 --epochs 1 --steps-per-epoch 120 --val-steps 15 --lr 5e-5`
 
+## Trial 3 (29 Oct 2026 night): trial 2 + 6 more epochs + 24-h (4-step) fine-tune
+Model `D:/masrainman_runs/trial3/best.pt` (one-step best before fine-tune: `best_stage1.pt`).
+Much better than trials 1-2 and now beats persistence at most leads (days 3-10):
+msl +18-26%, z500 +19-31%, rain RMSE +22-26%, v850 +14-15%, u850 +5-7%, tcwv +5-11%;
+heavy-rain CSI best so far (day 1 0.36, day 3 0.34, day 10 0.23). t2m at whole days still
+21-30% worse than persistence (but day 10 error 3.95 -> 1.75 C); u200 ~ persistence.
+=> more training was the cure for the winds, as the diagnosis said.
+Still weak: Cyclone Fani (init 2019-04-29) is filled in and not moved (truth 975 hPa at
+15.8N 84.5E on day 3; model ~1004 hPa, broad weak swirl further south). MSE training damps
+rare extremes and one year holds few cyclones -> more data, then consider extreme-aware
+losses/oversampling of cyclone cases. A faint frame is still visible where the blend starts.
+
 ## Resume from the last point
 **Automatic since 28 Oct 2026:** the download starts by itself at every Windows login
 (shortcut "MasRainMan ERA5 download" in the Startup folder, made by
