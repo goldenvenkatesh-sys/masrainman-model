@@ -11,12 +11,13 @@
   to the domain. GFS was tried first and dropped in favour of ECMWF (same model family as ERA5). They need a real trained checkpoint to be useful:
   `python -m masrainman.live_forecast --ckpt D:/masrainman_runs/baseline/best.pt --plot`
 
-## Download progress (28 Oct 2026, 20:05 IST)
-- The CDS Terms of Use rev. 13 block is resolved (the account shows rev. 13 since ~19:50).
-- Done: `static.nc`, `sfc_2018.nc` (203 MB).
+## Download progress (29 Oct 2026, 05:50 IST)
+- 2018: `sfc_2018.nc` and `pl_2018.nc` done; `tp_2018` being processed at Copernicus.
+- 29 Oct fix: the first `pl_2018.nc` had empty 850 hPa winds (merge bug, now fixed and
+  tested); it was rebuilt from the finished Copernicus results and checked field by field.
 - Each year needs 6 requests: sfc, pressure levels at 200 / 500 hPa (one each), 850 hPa
   (two half-year chunks, merged automatically), and hourly rain. 36 requests for 2018-2023.
-- 22:15: 2018 surface, 200/500 hPa and 850 hPa Jan-Jun done; 850 hPa Jul-Dec queued. Live log: `D:\masrainman_data\download.log`.
+- Auto-start fires about 5 minutes after Windows login (Windows delays Startup apps).
 
 ## Resume from the last point
 **Automatic since 28 Oct 2026:** the download starts by itself at every Windows login
