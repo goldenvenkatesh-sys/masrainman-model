@@ -20,8 +20,8 @@
 - Auto-start fires about 5 minutes after Windows login (Windows delays Startup apps).
 
 ## Trial run (29 Oct 2026): train 2018 only, 6 epochs, ~42 min on CPU
-Config: `D:\masrainman_runs	rial\config.trial.yaml`; model `D:\masrainman_runs	rialest.pt`
-(epoch 5, val loss 0.114); scores in `D:\masrainman_runs	rial\scores.csv/.png` (71 forecasts in 2019).
+Config: `D:\masrainman_runs\trial\config.trial.yaml`; model `D:\masrainman_runs\trial\best.pt`
+(epoch 5, val loss 0.114); scores in `D:\masrainman_runs\trial\scores.csv/.png` (71 forecasts in 2019).
 - The pipeline works end to end on real ERA5.
 - Learned: daily cycles. 6-h errors are 3-4x below persistence for t2m, msl and z500; rain
   beats persistence for days 1-3 (15% / 9% lower RMSE; CSI >=2.5 mm/6h: 0.35 day 1, 0.16 day 10).
