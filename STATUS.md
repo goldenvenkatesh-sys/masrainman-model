@@ -19,6 +19,20 @@
   (two half-year chunks, merged automatically), and hourly rain. 36 requests for 2018-2023.
 - Auto-start fires about 5 minutes after Windows login (Windows delays Startup apps).
 
+## Trial run (29 Oct 2026): train 2018 only, 6 epochs, ~42 min on CPU
+Config: `D:\masrainman_runs	rial\config.trial.yaml`; model `D:\masrainman_runs	rialest.pt`
+(epoch 5, val loss 0.114); scores in `D:\masrainman_runs	rial\scores.csv/.png` (71 forecasts in 2019).
+- The pipeline works end to end on real ERA5.
+- Learned: daily cycles. 6-h errors are 3-4x below persistence for t2m, msl and z500; rain
+  beats persistence for days 1-3 (15% / 9% lower RMSE; CSI >=2.5 mm/6h: 0.35 day 1, 0.16 day 10).
+- Not learned yet: moving systems. One-step changes in winds/moisture are only 10-25% of
+  the real ones (u850, u200, v200 are near persistence). Cyclone Fani (init 2019-04-29) stays
+  in place and weakens (1004 hPa vs <960 hPa observed). Errors at whole-day leads exceed
+  persistence for t2m and z500 beyond ~2 days (single-step training drifts).
+- Visible seam at the boundary ring.
+- Expected fixes: 4 training years, more epochs, multi-step (rollout) fine-tuning,
+  per-channel loss weights, a smooth blend at the boundary instead of a hard ring.
+
 ## Resume from the last point
 **Automatic since 28 Oct 2026:** the download starts by itself at every Windows login
 (shortcut "MasRainMan ERA5 download" in the Startup folder, made by
