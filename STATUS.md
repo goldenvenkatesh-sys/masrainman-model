@@ -33,6 +33,17 @@ Config: `D:\masrainman_runs\trial\config.trial.yaml`; model `D:\masrainman_runs\
 - Expected fixes: 4 training years, more epochs, multi-step (rollout) fine-tuning,
   per-channel loss weights, a smooth blend at the boundary instead of a hard ring.
 
+## Trial 2 (29 Oct 2026): tendency-unit loss + smooth boundary, 6 epochs, no fine-tune yet
+Model `D:\masrainman_runs\trial2\best.pt` (epoch 5); scores `D:\masrainman_runs\trial2\scores.csv`.
+- Better: rain amount RMSE beats persistence at every lead (+19% day 1 ... +24% day 10; trial 1
+  only days 1-3); z500 day 10 27.3 -> 22.8 m; no boundary seam.
+- Worse: heavy-rain CSI (day 1 0.35 -> 0.27, rain smoother); t2m beyond day 1 (day 3 2.10 -> 2.75 C).
+- Still unexplained: u850/v850/u200/v200/tcwv RMSE match trial 1 AND persistence to 2 decimals.
+  The new loss weights them far more, so they should have moved -> suspect a structural cause
+  (data or model), not just under-training. INVESTIGATE FIRST next session.
+- Not done yet: stage 2 (4-step / 24-h fine-tune). Rerun with
+  `python -m masrainman.train --config D:\masrainman_runs\trial\config.trial.yaml --name trial2 --resume --rollout 4 --epochs 1 --steps-per-epoch 120 --val-steps 15 --lr 5e-5`
+
 ## Resume from the last point
 **Automatic since 28 Oct 2026:** the download starts by itself at every Windows login
 (shortcut "MasRainMan ERA5 download" in the Startup folder, made by
