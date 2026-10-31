@@ -11,13 +11,11 @@
   to the domain. GFS was tried first and dropped in favour of ECMWF (same model family as ERA5). They need a real trained checkpoint to be useful:
   `python -m masrainman.live_forecast --ckpt D:/masrainman_runs/baseline/best.pt --plot`
 
-## Download progress (29 Oct 2026, 05:50 IST)
-- 2018: `sfc_2018.nc` and `pl_2018.nc` done; `tp_2018` being processed at Copernicus.
-- 29 Oct fix: the first `pl_2018.nc` had empty 850 hPa winds (merge bug, now fixed and
-  tested); it was rebuilt from the finished Copernicus results and checked field by field.
-- Each year needs 6 requests: sfc, pressure levels at 200 / 500 hPa (one each), 850 hPa
-  (two half-year chunks, merged automatically), and hourly rain. 36 requests for 2018-2023.
-- Auto-start fires about 5 minutes after Windows login (Windows delays Startup apps).
+## Download: COMPLETE (1 Nov 2026, 03:34 IST)
+- All 18 yearly files for 2018-2023 (sfc / pl / tp) are in `D:/masrainman_data/raw`, 3.6 GB.
+  Checked 1 Nov: every file on the right grid, all time steps present, zero missing values.
+- The auto-start shortcut can stay (it now finds every file and exits) or be removed with
+  `powershell -ExecutionPolicy Bypass -File D:/masrainman-model/scripts/install_autostart.ps1 -Remove`.
 
 ## Trial run (29 Oct 2026): train 2018 only, 6 epochs, ~42 min on CPU
 Config: `D:\masrainman_runs\trial\config.trial.yaml`; model `D:\masrainman_runs\trial\best.pt`
