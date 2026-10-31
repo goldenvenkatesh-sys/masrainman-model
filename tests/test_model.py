@@ -50,3 +50,16 @@ def test_loss_weight_ignores_forced_cells(cfg):
     m = torch.from_numpy(boundary_mask(cfg))
     assert (w[m == 1] == 0).all() and (w[m == 0] > 0).all()
     assert torch.isclose(w.mean(), torch.tensor(1.0))
+
+
+def test_init_network_copies_only_network_weights(cfg, tmp_path):
+    from masrainman.train import init_network
+    src, mask, C = make(cfg)
+    torch.nn.init.normal_(src.net.out.weight)
+    src.tend_scale.fill_(123.0)  # stands in for another run's statistics
+    ck = tmp_path / "other.pt"
+    torch.save({"model": src.state_dict()}, ck)
+    dst, _, _ = make(cfg)
+    init_network(dst, ck)
+    assert torch.equal(dst.net.out.weight, src.net.out.weight)
+    assert torch.all(dst.tend_scale == 1.0)  # own statistics kept

@@ -26,6 +26,14 @@ def loss_weight(cfg):
     return torch.from_numpy(w / w.mean())[None, None]
 
 
+def init_network(model, path):
+    """Copy only the network weights from another checkpoint; static fields, the boundary
+    mask and tend_scale stay as built from this run's data and statistics."""
+    ck = torch.load(path, map_location="cpu", weights_only=False)
+    net = {k[len("net."):]: v for k, v in ck["model"].items() if k.startswith("net.")}
+    model.net.load_state_dict(net)
+
+
 def run_batches(model, loader, weight, rollout, max_steps, opt=None):
     total, n = 0.0, 0
     for i, (seq, tf) in enumerate(loader):
@@ -67,6 +75,8 @@ def main():
     ap.add_argument("--steps-per-epoch", type=int, default=2000, help="cap so an epoch fits a CPU budget (0 = all)")
     ap.add_argument("--val-steps", type=int, default=100)
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--init-from", help="start from another run's network weights (its statistics, "
+                                        "grid buffers and optimiser state are not copied)")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
@@ -92,6 +102,9 @@ def main():
         model.load_state_dict(ck["model"])
         best = ck.get("best_val", np.inf) if args.rollout == ck.get("rollout", 1) else np.inf
         print(f"resumed from {out / 'last.pt'}")
+    elif args.init_from:
+        init_network(model, args.init_from)
+        print(f"network weights initialised from {args.init_from}")
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
     weight = loss_weight(cfg)
