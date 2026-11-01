@@ -96,17 +96,29 @@ def main():
 
     model = build_stepper(cfg)
     print(f"parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f} M")
-    best = np.inf
+    best, start, ck = np.inf, 1, None
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
     if args.resume:
         ck = torch.load(out / "last.pt", map_location="cpu", weights_only=False)
         model.load_state_dict(ck["model"])
-        best = ck.get("best_val", np.inf) if args.rollout == ck.get("rollout", 1) else np.inf
-        print(f"resumed from {out / 'last.pt'}")
+        if args.rollout == ck.get("rollout", 1):
+            # Same stage: carry on after the last finished epoch with the same schedule.
+            best = ck.get("best_val", np.inf)
+            start = ck.get("epoch", 0) + 1
+            if "opt" in ck:
+                opt.load_state_dict(ck["opt"])
+                sched.load_state_dict(ck["sched"])
+            else:  # checkpoints from before optimiser state was saved
+                for _ in range(start - 1):
+                    sched.step()
+        print(f"resumed from {out / 'last.pt'} at epoch {start} of {args.epochs}")
+        if start > args.epochs:
+            print("this stage is already complete")
+            return
     elif args.init_from:
         init_network(model, args.init_from)
         print(f"network weights initialised from {args.init_from}")
-    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
     weight = loss_weight(cfg)
 
     log_path = out / "log.csv"
@@ -115,7 +127,7 @@ def main():
         log = csv.writer(f)
         if new_log:
             log.writerow(["epoch", "rollout", "train_loss", "val_loss", "minutes"])
-        for epoch in range(1, args.epochs + 1):
+        for epoch in range(start, args.epochs + 1):
             t0 = time.time()
             model.train()
             tr = run_batches(model, train_dl, weight, args.rollout, args.steps_per_epoch, opt)
@@ -128,7 +140,7 @@ def main():
             log.writerow([epoch, args.rollout, f"{tr:.5f}", f"{va:.5f}", f"{minutes:.1f}"])
             f.flush()
             ck = {"model": model.state_dict(), "cfg": cfg, "epoch": epoch, "rollout": args.rollout,
-                  "best_val": min(best, va)}
+                  "best_val": min(best, va), "opt": opt.state_dict(), "sched": sched.state_dict()}
             torch.save(ck, out / "last.pt")
             if va < best:
                 best = va
