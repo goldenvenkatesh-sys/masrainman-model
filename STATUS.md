@@ -90,6 +90,35 @@ Same weakness as Fani: extremes are smoothed away. Faint frame from the blend zo
 Next ideas: cyclone/heavy-rain oversampling or a weighted loss, learn the daily t2m cycle
 (more time features or hourly data), longer rollout fine-tune, IMD obs for verification.
 
+## Cyclone fine-tune (1 Nov 2026 evening) -- DONE, new best model
+`scripts\cyclone_run.ps1`, run dir `D:/masrainman_runs/cyclone`, ~2.75 h. Starts from the full
+run's one-step model; `--cyclone-boost 5` draws windows holding a cyclone 13% of the time
+instead of 3%, and `--cyclone-weight 3` counts errors within ~2.5 deg of a deep low up to 4x.
+"Low depth" = 5x5 deg box mean MSLP minus the cell's MSLP (masrainman/extremes.py); it picks
+out the named cyclones and ignores monsoon troughs. Model: `D:/masrainman_runs/cyclone/best.pt`.
+
+Storm scorecard (`python -m masrainman.cyclones --ckpt ...`, 5-day forecasts from the young
+low; lowest MSLP model / ERA5, track error days 1-3):
+
+| storm | full run | cyclone run | ERA5 |
+|---|---|---|---|
+| Asani 2022 | 991 hPa, 265 km | 981 hPa, 379 km | 974 |
+| Sitrang 2022 | 1002, 300 km | 993, 209 km | 995 |
+| Mandous 2022 | 997, 223 km | 995, 344 km | 988 |
+| Mocha 2023 | 974, 148 km | 973, 101 km | 960 |
+| Hamoon 2023 | 1007, 426 km | 1003, 311 km | 1001 |
+| Michaung 2023 | 1006, 252 km | 1001, 152 km | 992 |
+| depth kept (capped at 100%) | 42% | 72% | |
+| mean track error | 269 km | 249 km | |
+
+Whole of 2023 vs the full run (skill vs persistence, percentage points): t2m much better
+(day 5 -11% -> +2%, day 10 -13% -> +7%: now beats persistence after day 4), msl +7-8,
+u200/v200 +3-10, rain CSI up (0.46/0.32/0.32/0.30 at days 1/3/5/10); u850 4-8 points worse
+(still +20-39%), q850 and z500 2-8 points worse. A good trade for cyclone season.
+Michaung maps: `D:/masrainman_runs/cyclone/forecasts/` -- closed low and Andhra coast rain band
+on day 3, but ~2 deg north of the real centre and ~12 hPa too shallow.
+Next: more years of ERA5 (2010-2017) for more storms, a bigger network, longer rollouts.
+
 ## Resume from the last point
 **Download (finished 1 Nov):** the download started by itself at every Windows login
 (shortcut "MasRainMan ERA5 download" in the Startup folder, made by
