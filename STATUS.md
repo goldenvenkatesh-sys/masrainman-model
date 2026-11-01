@@ -59,8 +59,39 @@ Still weak: Cyclone Fani (init 2019-04-29) is filled in and not moved (truth 975
 rare extremes and one year holds few cyclones -> more data, then consider extreme-aware
 losses/oversampling of cyclone cases. A faint frame is still visible where the blend starts.
 
+## Full run (1 Nov 2026): train 2018-2021, check 2022, score 2023 -- DONE
+`scriptsull_run.ps1`, run dir `D:/masrainman_runs/full`. Warm start from trial 3, 12 epochs
+over all 5841 training samples (~20-28 min each), then the 24-h fine-tune; total ~6.5 h
+including a reboot (it resumed by itself at epoch 2). Best one-step val 0.378 (epoch 11;
+trial 3 ~0.55). Model: `D:/masrainman_runs/full/best.pt` (`best_stage1.pt` = before fine-tune).
+Skill vs persistence on the unseen year 2023 (RMSE gain, focus box), days 1 / 3 / 5 / 10:
+
+| field | day 1 | day 3 | day 5 | day 10 |
+|---|---|---|---|---|
+| msl | +25% | +37% | +38% | +37% |
+| z500 | +17% | +24% | +23% | +14% |
+| rain (tp) | +22% | +23% | +33% | +33% |
+| u850 / v850 | +28 / +23% | +38 / +28% | +40 / +35% | +43 / +36% |
+| u10 / v10 | +25 / +22% | +35 / +36% | +39 / +38% | +45 / +38% |
+| tcwv / q850 | +32 / +32% | +29 / +33% | +29 / +33% | +29 / +33% |
+| t850 / d2m | +15 / +20% | +19 / +29% | +21 / +29% | +20 / +27% |
+| u200 / v200 | +5 / +3% | +12 / +6% | +14 / +6% | +15 / +4% |
+| t2m | -14% | -13% | -11% | -13% |
+
+Rain CSI (>=2.5 mm/6 h): day 1 0.44, day 3 0.30, day 5 0.28, day 10 0.27.
+Every field now beats persistence except t2m at whole days (error ~1.0 C day 1, 1.4 C day 5,
+against 0.84 / 1.24 C for persistence: the daily cycle is easy to persist, so the model
+needs to learn it better). Trial 3 was scored on 2019, so the comparison is indicative.
+
+Cyclone Michaung (init 2023-12-01 00 UTC; maps `D:/masrainman_runs/forecasts/fc_2023120100_*.png`):
+the model moves the low north-west towards Tamil Nadu for ~2 days but never deepens it:
+lowest 1006 hPa vs ERA5 992 hPa near 13N 81.5E on 4 Dec; after day 3 it stalls near Sri Lanka.
+Same weakness as Fani: extremes are smoothed away. Faint frame from the blend zone still shows.
+Next ideas: cyclone/heavy-rain oversampling or a weighted loss, learn the daily t2m cycle
+(more time features or hourly data), longer rollout fine-tune, IMD obs for verification.
+
 ## Resume from the last point
-**Automatic since 28 Oct 2026:** the download starts by itself at every Windows login
+**Download (finished 1 Nov):** the download started by itself at every Windows login
 (shortcut "MasRainMan ERA5 download" in the Startup folder, made by
 `scripts\install_autostart.ps1`; remove with `-Remove`). It runs from the permanent copy
 `D:\masrainman-model` (a clone of this repo; `D:\masrainman` is a separate folder of the
