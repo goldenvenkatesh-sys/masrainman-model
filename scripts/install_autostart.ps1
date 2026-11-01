@@ -2,14 +2,16 @@
 # Adds a shortcut to your Startup folder that runs the job's script minimized.
 #   powershell -ExecutionPolicy Bypass -File scripts\install_autostart.ps1                  # ERA5 download
 #   powershell -ExecutionPolicy Bypass -File scripts\install_autostart.ps1 -Job training    # full training run
+#   powershell -ExecutionPolicy Bypass -File scripts\install_autostart.ps1 -Job cyclone     # cyclone fine-tune
 #   add -Remove to uninstall that job's shortcut
 # Both jobs skip finished work and resume where they stopped, so starting them at every
 # login is safe; if one is already running, the second start exits at once.
-param([ValidateSet("download", "training")][string]$Job = "download", [switch]$Remove)
+param([ValidateSet("download", "training", "cyclone")][string]$Job = "download", [switch]$Remove)
 
 $jobs = @{
     download = @{ Script = "download_era5.ps1"; Name = "MasRainMan ERA5 download" }
     training = @{ Script = "full_run.ps1"; Name = "MasRainMan full training" }
+    cyclone = @{ Script = "cyclone_run.ps1"; Name = "MasRainMan cyclone training" }
 }
 $link = Join-Path ([Environment]::GetFolderPath("Startup")) "$($jobs[$Job].Name).lnk"
 if ($Remove) {

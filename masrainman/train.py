@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 
 from .config import boundary_mask, focus_mask, load_config, run_dir, year_range
 from .dataset import Windows
+from .extremes import box_cells, pixel_weight, sample_weights
 from .model import build_stepper
 
 
@@ -34,7 +35,7 @@ def init_network(model, path):
     model.net.load_state_dict(net)
 
 
-def run_batches(model, loader, weight, rollout, max_steps, opt=None):
+def run_batches(model, loader, weight, rollout, max_steps, opt=None, extra=None):
     total, n = 0.0, 0
     for i, (seq, tf) in enumerate(loader):
         if max_steps and i >= max_steps:
@@ -49,7 +50,8 @@ def run_batches(model, loader, weight, rollout, max_steps, opt=None):
             # units a field that changes little per step (winds aloft) hardly counts, and
             # the model learns to leave it unchanged.
             err = (pred - target) / model.tend_scale
-            loss = loss + (err ** 2 * weight).mean()
+            w = weight if extra is None else weight * extra(target)
+            loss = loss + (err ** 2 * w).mean()
             prev, now = now, pred
         loss = loss / rollout
         if opt is not None:
@@ -77,6 +79,10 @@ def main():
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--init-from", help="start from another run's network weights (its statistics, "
                                         "grid buffers and optimiser state are not copied)")
+    ap.add_argument("--cyclone-boost", type=float, default=0,
+                    help="draw training windows with a cyclone up to 1+N times as often")
+    ap.add_argument("--cyclone-weight", type=float, default=0,
+                    help="count errors around deep lows up to 1+N times as much")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
@@ -90,7 +96,14 @@ def main():
     train_ds = Windows(cfg, year_range(cfg["years"]["train"]), args.rollout)
     val_ds = Windows(cfg, year_range(cfg["years"]["val"]), args.rollout)
     print(f"train samples {len(train_ds)}, val samples {len(val_ds)}")
-    train_dl = DataLoader(train_ds, batch_size=batch, shuffle=True, num_workers=tc["num_workers"], drop_last=True)
+    sampler = None
+    if args.cyclone_boost:
+        w, depth = sample_weights(train_ds, cfg, args.cyclone_boost)
+        sampler = torch.utils.data.WeightedRandomSampler(torch.from_numpy(w), len(w), replacement=True)
+        print(f"cyclone boost {args.cyclone_boost}: {(depth >= 6).sum()} windows with a low >= 6 hPa deep, "
+              f"now {100 * (w * (depth >= 6)).sum() / w.sum():.1f}% of draws (was {100 * (depth >= 6).mean():.1f}%)")
+    train_dl = DataLoader(train_ds, batch_size=batch, shuffle=sampler is None, sampler=sampler,
+                          num_workers=tc["num_workers"], drop_last=True)
     val_dl = DataLoader(val_ds, batch_size=batch, shuffle=True, num_workers=tc["num_workers"],
                         generator=torch.Generator().manual_seed(1))
 
@@ -120,6 +133,11 @@ def main():
         init_network(model, args.init_from)
         print(f"network weights initialised from {args.init_from}")
     weight = loss_weight(cfg)
+    extra = None
+    if args.cyclone_weight:
+        im, cells, st = cfg["channels"].index("msl"), box_cells(cfg), train_ds.stats
+        mean, std = float(st.mean[im, 0, 0]), float(st.std[im, 0, 0])
+        extra = lambda target: pixel_weight(target[:, im] * std + mean, cells, args.cyclone_weight)  # noqa: E731
 
     log_path = out / "log.csv"
     new_log = not log_path.exists()
@@ -130,11 +148,11 @@ def main():
         for epoch in range(start, args.epochs + 1):
             t0 = time.time()
             model.train()
-            tr = run_batches(model, train_dl, weight, args.rollout, args.steps_per_epoch, opt)
+            tr = run_batches(model, train_dl, weight, args.rollout, args.steps_per_epoch, opt, extra)
             sched.step()
             model.eval()
             with torch.no_grad():
-                va = run_batches(model, val_dl, weight, args.rollout, args.val_steps)
+                va = run_batches(model, val_dl, weight, args.rollout, args.val_steps, extra=extra)
             minutes = (time.time() - t0) / 60
             print(f"epoch {epoch}: train {tr:.4f}  val {va:.4f}  ({minutes:.1f} min)", flush=True)
             log.writerow([epoch, args.rollout, f"{tr:.5f}", f"{va:.5f}", f"{minutes:.1f}"])

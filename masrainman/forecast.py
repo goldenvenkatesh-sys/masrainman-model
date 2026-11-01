@@ -10,6 +10,7 @@ Hindcast mode takes the boundary ring from ERA5, i.e. "perfect boundaries".
 Live forecasts take it from ECMWF open data instead (see live_forecast.py).
 """
 import argparse
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -91,6 +92,7 @@ def main():
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--init", required=True, help="start time, e.g. 2023-11-20T00")
     ap.add_argument("--days", type=float, default=10)
+    ap.add_argument("--out", help="output folder (default <run_dir>/forecasts)")
     args = ap.parse_args()
 
     model, cfg = load_checkpoint(args.ckpt)
@@ -104,7 +106,9 @@ def main():
         raise SystemExit(f"ERA5 missing for {len(missing)} times (first {missing[0]}); "
                          "hindcasts need data from init-6h to the last valid time.")
 
-    run_and_save(cfg, model, arch, stats, init, n_steps, run_dir(cfg, "forecasts"),
+    out = Path(args.out) if args.out else run_dir(cfg, "forecasts")
+    out.mkdir(parents=True, exist_ok=True)
+    run_and_save(cfg, model, arch, stats, init, n_steps, out,
                  "hindcast with ERA5 boundaries")
 
 
