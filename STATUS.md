@@ -151,7 +151,7 @@ latest ECMWF open-data run. Maps go to the `live` branch (README shows them; rep
 full netCDF output is the run's artifact (kept 14 days). ~5-10 Actions minutes per run, well
 inside the 2000 free minutes a month for private repos.
 Rain maps use the MasRainMan standard colour bar (same as the Rain Alarm app's app.js):
-24-h totals, 1-300+ mm. The laptop version (`scripts\live_daily.ps1`, Task Scheduler via
+24-h totals, 1-300+ mm. The laptop version (`scripts\live_daily.ps1`; its Task Scheduler task was removed 2 Nov, reinstall via
 `scripts\install_daily_forecast.ps1`) still works for local runs. Live maps are a little noisier
 than hindcasts: ECMWF's live analysis is sharper than ERA5 (a fine-tune on ECMWF data could fix it).
 
