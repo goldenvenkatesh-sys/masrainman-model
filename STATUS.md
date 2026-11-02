@@ -142,8 +142,13 @@ python -m masrainman.evaluate --ckpt D:/masrainman_runs/baseline/best.pt
 ```
 Training also resumes: stop with Ctrl+C, then rerun with `--resume`.
 
-Then daily live forecasts: `powershell -ExecutionPolicy Bypass -File scripts\live_daily.ps1`
-(add it to Windows Task Scheduler at 14:00 IST for the 00 UTC run, 02:00 IST for 12 UTC).
+**Daily live forecasts: running since 2 Nov 2026.** Task Scheduler task "MasRainMan daily
+forecast" runs `scripts\live_daily.ps1` (cyclone model) daily at 14:00 IST, or as soon as the
+laptop is on after that; made by `scripts\install_daily_forecast.ps1` (`-At HH:MM`, `-Remove`).
+Each run: ~270 MB ECMWF download + ~1 min model, ~10 min in all. Output in
+`D:\masrainman_runs\live\` (fc_<cycle>.nc, hourly 0-24 h file, maps at 24/72/120/240 h),
+log `live.log`. First live run: ECMWF 2026-11-01 12 UTC. Live maps are a little noisier than
+hindcasts: ECMWF's live analysis is sharper than ERA5 (a fine-tune on ECMWF data could fix it).
 
 Checks: `python -m pytest -q tests` (8 tests, all passing on 28 Oct 2026).
 
