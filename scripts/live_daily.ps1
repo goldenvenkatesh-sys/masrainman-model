@@ -3,7 +3,7 @@
 # and 02:00 IST for the 12 UTC run). Old ECMWF caches beyond -KeepDays are removed.
 #   powershell -ExecutionPolicy Bypass -File scripts\live_daily.ps1
 param(
-    [string]$Ckpt = "D:\masrainman_runs\baseline\best.pt",
+    [string]$Ckpt = "D:\masrainman_runs\cyclone\best.pt",
     [string]$Log = "D:\masrainman_runs\live\live.log",
     [int]$KeepDays = 10
 )
@@ -16,7 +16,10 @@ if (-not (Test-Path $Ckpt)) {
 }
 
 Add-Content $Log "=== $(Get-Date -Format s) live forecast"
-python -u -m masrainman.live_forecast --ckpt $Ckpt --plot 2>&1 | ForEach-Object { "$_"; Add-Content -Path $Log -Value "$_" }
+# download progress bars go to the window only, not the log
+python -u -m masrainman.live_forecast --ckpt $Ckpt --plot 2>&1 | ForEach-Object {
+    "$_"; if ("$_" -notmatch '\d+%\|') { Add-Content -Path $Log -Value "$_" }
+}
 $code = $LASTEXITCODE
 Add-Content $Log "=== $(Get-Date -Format s) finished with exit code $code"
 
