@@ -142,13 +142,18 @@ python -m masrainman.evaluate --ckpt D:/masrainman_runs/baseline/best.pt
 ```
 Training also resumes: stop with Ctrl+C, then rerun with `--resume`.
 
-**Daily live forecasts: running since 2 Nov 2026.** Task Scheduler task "MasRainMan daily
-forecast" runs `scripts\live_daily.ps1` (cyclone model) daily at 14:00 IST, or as soon as the
-laptop is on after that; made by `scripts\install_daily_forecast.ps1` (`-At HH:MM`, `-Remove`).
-Each run: ~270 MB ECMWF download + ~1 min model, ~10 min in all. Output in
-`D:\masrainman_runs\live\` (fc_<cycle>.nc, hourly 0-24 h file, maps at 24/72/120/240 h),
-log `live.log`. First live run: ECMWF 2026-11-01 12 UTC. Live maps are a little noisier than
-hindcasts: ECMWF's live analysis is sharper than ERA5 (a fine-tune on ECMWF data could fix it).
+**Daily live forecasts: on GitHub Actions since 2 Nov 2026 (runs with the laptop off).**
+`.github/workflows/daily_forecast.yml` runs daily at 08:30 UTC (14:00 IST), on every push of
+`operational/`, or by hand ("Run workflow" on the Actions tab). It uses the model packed in
+`operational/` (now the cyclone model; repack a new one with
+`python -m masrainman.export_model --ckpt <best.pt> --out operational`, commit, push) and the
+latest ECMWF open-data run. Maps go to the `live` branch (README shows them; replaced daily),
+full netCDF output is the run's artifact (kept 14 days). ~5-10 Actions minutes per run, well
+inside the 2000 free minutes a month for private repos.
+Rain maps use the MasRainMan standard colour bar (same as the Rain Alarm app's app.js):
+24-h totals, 1-300+ mm. The laptop version (`scripts\live_daily.ps1`, Task Scheduler via
+`scripts\install_daily_forecast.ps1`) still works for local runs. Live maps are a little noisier
+than hindcasts: ECMWF's live analysis is sharper than ERA5 (a fine-tune on ECMWF data could fix it).
 
 Checks: `python -m pytest -q tests` (8 tests, all passing on 28 Oct 2026).
 

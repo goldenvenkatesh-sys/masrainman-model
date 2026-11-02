@@ -89,8 +89,12 @@ def build_stepper(cfg):
                    torch.from_numpy(tend_scale.astype(np.float32)), base=cfg["model"]["base_channels"])
 
 
-def load_checkpoint(path):
+def load_checkpoint(path, data_dir=None):
+    """data_dir replaces the folder the checkpoint was trained with (static fields are read
+    from <data_dir>/processed while building the model)."""
     ck = torch.load(path, map_location="cpu", weights_only=False)
+    if data_dir:
+        ck["cfg"]["data_dir"] = str(data_dir)
     model = build_stepper(ck["cfg"])
     model.load_state_dict(ck["model"])
     model.eval()

@@ -32,8 +32,7 @@ def main():
     ap.add_argument("--run-dir", help="output root; maps go to <run-dir>/live (default: from the config)")
     args = ap.parse_args()
 
-    model, cfg = load_checkpoint(args.ckpt)
-    cfg["data_dir"] = args.data_dir or cfg["data_dir"]
+    model, cfg = load_checkpoint(args.ckpt, args.data_dir)
     cfg["run_dir"] = args.run_dir or cfg["run_dir"]
     torch.set_num_threads(cfg["train"]["threads"])
     cycle = to_hour(args.cycle) if args.cycle else latest_cycle(cfg)
