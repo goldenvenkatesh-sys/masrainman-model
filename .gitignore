@@ -10,3 +10,8 @@ runs/
 *.part
 config.synthetic.yaml
 *.job
+operational/ecmwf/
+out/
+!operational/model.pt
+!operational/processed/*.npy
+!operational/processed/*.npz

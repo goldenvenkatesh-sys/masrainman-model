@@ -8,11 +8,30 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import BoundaryNorm
+from matplotlib.colors import BoundaryNorm, ListedColormap
 import numpy as np
 import xarray as xr
 
-RAIN_LEVELS = [0.1, 1, 2.5, 5, 10, 20, 40, 80]
+# MasRainMan standard rainfall colour bar, the same as the Rain Alarm web app (app.js):
+# daily totals in mm; nothing is drawn below 1 mm, and 300 mm and more is grey.
+RAIN_LEVELS = [1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 100, 150, 200, 300]
+RAIN_COLORS = ["#a8c8f0", "#76a9dc", "#5b96d1", "#2679b9", "#1768a5", "#167a9f", "#188b45", "#35a843",
+               "#73c53f", "#a8d62f", "#d8e82b", "#ffe51f", "#ffc21c", "#ff9e16", "#f47b16", "#e94b18",
+               "#d72a1d", "#c51f50", "#e2477a", "#f080a0"]
+RAIN_OVER = "#6b6b6b"
+
+
+def rain_cmap():
+    cmap = ListedColormap(RAIN_COLORS)
+    cmap.set_over(RAIN_OVER)
+    return cmap, BoundaryNorm(RAIN_LEVELS, cmap.N)  # above 300 mm -> the "over" grey
+
+
+def rain_24h(ds, lead):
+    """Rain total over the 24 h ending at `lead` (or since the start, for earlier leads)."""
+    leads = ds.lead.values
+    take = (leads > max(lead - 24, 0)) & (leads <= lead)
+    return ds.tp.isel(lead=np.where(take)[0]).sum("lead"), lead - max(lead - 24, 0)
 
 
 def coast(ax, ds):
@@ -41,11 +60,13 @@ def plot_lead(ds, lead, out):
     ax.set_title("10 m wind")
 
     ax = axes[1, 0]
-    rain = np.where(f.tp >= RAIN_LEVELS[0], f.tp, np.nan)
-    m = ax.pcolormesh(ds.lon, ds.lat, rain, cmap="YlGnBu",
-                      norm=BoundaryNorm(RAIN_LEVELS, 256, extend="max"), shading="auto")
-    fig.colorbar(m, ax=ax, label=ds.tp.attrs.get("units", "mm"))
-    ax.set_title("Rain")
+    total, hours = rain_24h(ds, lead)
+    rain = np.where(total >= RAIN_LEVELS[0], total, np.nan)
+    cmap, norm = rain_cmap()
+    m = ax.pcolormesh(ds.lon, ds.lat, rain, cmap=cmap, norm=norm, shading="auto")
+    cb = fig.colorbar(m, ax=ax, label="mm", ticks=RAIN_LEVELS, spacing="uniform", extend="max")
+    cb.ax.tick_params(labelsize=7)
+    ax.set_title(f"Rainfall, {int(hours)} h total to +{int(lead)} h")
 
     ax = axes[1, 1]
     m = ax.pcolormesh(ds.lon, ds.lat, f.tcwv, cmap="BrBG", shading="auto")

@@ -1,0 +1,9 @@
+# What the daily GitHub Actions forecast needs (torch is installed separately, CPU build).
+numpy
+pandas
+xarray
+netCDF4
+pyyaml
+matplotlib
+eccodes
+ecmwf-opendata

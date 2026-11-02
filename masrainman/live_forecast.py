@@ -2,6 +2,8 @@
 
   python -m masrainman.live_forecast --ckpt D:/masrainman_runs/baseline/best.pt --plot
   python -m masrainman.live_forecast --ckpt ... --cycle 2026-10-28T00
+  python -m masrainman.live_forecast --ckpt operational/model.pt --data-dir operational --run-dir out --plot
+      (the GitHub Actions setup: everything it needs is in the repo's operational/ folder)
 
 ECMWF gives the start state and the boundary ring at every step, exactly like ERA5
 does in hindcasts (ERA5 is made with the same ECMWF model, so the two match well).
@@ -25,9 +27,14 @@ def main():
     ap.add_argument("--cycle", help="ECMWF 00/12 UTC run, e.g. 2026-10-28T00 (default: latest complete run)")
     ap.add_argument("--days", type=float, default=10)
     ap.add_argument("--plot", action="store_true", help="also draw maps at 24/72/120/240 h")
+    ap.add_argument("--data-dir", help="folder with processed/stats.npz and static.npy; also caches "
+                                       "ECMWF data (default: data_dir of the checkpoint's config)")
+    ap.add_argument("--run-dir", help="output root; maps go to <run-dir>/live (default: from the config)")
     args = ap.parse_args()
 
     model, cfg = load_checkpoint(args.ckpt)
+    cfg["data_dir"] = args.data_dir or cfg["data_dir"]
+    cfg["run_dir"] = args.run_dir or cfg["run_dir"]
     torch.set_num_threads(cfg["train"]["threads"])
     cycle = to_hour(args.cycle) if args.cycle else latest_cycle(cfg)
     n_steps = int(args.days * 24 // cfg["step_hours"])
