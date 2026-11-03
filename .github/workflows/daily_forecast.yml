@@ -76,6 +76,7 @@ jobs:
           tag=$(basename "$nc" .nc); tag=${tag#fc_}
           mkdir pub
           cp out/live/fc_${tag}_*.png pub/
+          cp out/live/fc_${tag}_maps.json pub/manifest.json
           echo "$tag" > pub/cycle.txt   # read by the "already published?" check
           {
             echo "# MasRainMan AI forecast"

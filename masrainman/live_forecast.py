@@ -26,7 +26,7 @@ def main():
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--cycle", help="ECMWF 00/12 UTC run, e.g. 2026-10-28T00 (default: latest complete run)")
     ap.add_argument("--days", type=float, default=10)
-    ap.add_argument("--plot", action="store_true", help="also draw maps at 24/72/120/240 h")
+    ap.add_argument("--plot", action="store_true", help="also draw a map for every day (+24 h ... +240 h) and a maps.json list")
     ap.add_argument("--data-dir", help="folder with processed/stats.npz and static.npy; also caches "
                                        "ECMWF data (default: data_dir of the checkpoint's config)")
     ap.add_argument("--run-dir", help="output root; maps go to <run-dir>/live (default: from the config)")
@@ -44,12 +44,23 @@ def main():
     path = run_and_save(cfg, model, arch, Stats(cfg), cycle, n_steps, run_dir(cfg, "live"),
                         "live forecast with ECMWF open-data start and boundaries")
     if args.plot:
-        from .plot import plot_lead
+        import json
+
+        import pandas as pd
         import xarray as xr
+
+        from .plot import plot_lead
         ds = xr.open_dataset(path)
-        for lead in (24, 72, 120, 240):
-            if lead in ds.lead.values:
-                plot_lead(ds, lead, path.with_name(f"{path.stem}_{lead:03d}h.png"))
+        maps = []
+        for lead in range(24, int(ds.lead.values.max()) + 1, 24):  # one map per day
+            png = path.with_name(f"{path.stem}_{lead:03d}h.png")
+            plot_lead(ds, lead, png)
+            valid = pd.Timestamp(ds.valid_time.sel(lead=lead).values)
+            maps.append({"lead": lead, "valid": valid.strftime("%Y-%m-%dT%H"), "file": png.name})
+        # read by web pages that show the maps (e.g. the WeatherNext3 site's MasRainMan AI page)
+        manifest = {"init": pd.Timestamp(cycle).strftime("%Y-%m-%dT%H"), "model": "MasRainMan AI",
+                    "made_utc": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M"), "maps": maps}
+        path.with_name(f"{path.stem}_maps.json").write_text(json.dumps(manifest, indent=1))
 
 
 if __name__ == "__main__":
