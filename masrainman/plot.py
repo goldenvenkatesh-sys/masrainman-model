@@ -3,13 +3,16 @@
   python -m masrainman.plot D:/masrainman_runs/forecasts/fc_2023112000.nc --leads 24 72 120 240
 """
 import argparse
+import json
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 from matplotlib.colors import BoundaryNorm, ListedColormap
 import numpy as np
+from scipy.ndimage import gaussian_filter
 import xarray as xr
 
 # MasRainMan standard rainfall colour bar, the same as the Rain Alarm web app (app.js):
@@ -34,50 +37,73 @@ def rain_24h(ds, lead):
     return ds.tp.isel(lead=np.where(take)[0]).sum("lead"), lead - max(lead - 24, 0)
 
 
-def coast(ax, ds):
-    ax.contour(ds.lon, ds.lat, ds.lsm, levels=[0.5], colors="k", linewidths=0.6)
+BOUNDARIES = Path(__file__).with_name("data") / "south_india_boundaries.json"
+_lines = {}
+
+
+def boundaries():
+    """State lines (DataMeet), land borders as per the Government of India, coastline."""
+    if not _lines:
+        d = json.loads(BOUNDARIES.read_text())
+        _lines.update({k: [np.array(c) for c in d[k]] for k in ("states", "borders", "coast")})
+    return _lines
+
+
+def draw_boundaries(ax, ds):
+    b = boundaries()
+    ax.add_collection(LineCollection(b["states"], colors="#555555", linewidths=0.45))
+    ax.add_collection(LineCollection(b["coast"], colors="k", linewidths=0.7))
+    ax.add_collection(LineCollection(b["borders"], colors="k", linewidths=0.9))
+    ax.set_xlim(float(ds.lon.min()), float(ds.lon.max()))
+    ax.set_ylim(float(ds.lat.min()), float(ds.lat.max()))
     ax.set_aspect("equal")
+
+
+def smooth(field, sigma):
+    """Light smoothing for display only: the 0.25 deg grid otherwise shows as blocks and
+    grid-scale speckle. The netCDF files keep the raw model values."""
+    return gaussian_filter(np.asarray(field, dtype=np.float32), sigma, mode="nearest")
 
 
 def plot_lead(ds, lead, out):
     f = ds.sel(lead=lead)
     valid = str(f.valid_time.values)[:13].replace("T", " ")
+    lon, lat = ds.lon, ds.lat
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
     ax = axes[0, 0]
-    m = ax.pcolormesh(ds.lon, ds.lat, f.t2m, cmap="RdYlBu_r", shading="auto")
+    m = ax.pcolormesh(lon, lat, smooth(f.t2m, 0.7), cmap="RdYlBu_r", shading="gouraud")
     fig.colorbar(m, ax=ax, label="2 m temperature (degC)")
-    cs = ax.contour(ds.lon, ds.lat, f.msl, levels=np.arange(980, 1030, 2), colors="k", linewidths=0.7)
+    cs = ax.contour(lon, lat, smooth(f.msl, 1.5), levels=np.arange(980, 1030, 2), colors="k", linewidths=0.7)
     ax.clabel(cs, fontsize=7, fmt="%d")
     ax.set_title("Temperature + MSLP (hPa)")
 
     ax = axes[0, 1]
-    speed = np.hypot(f.u10, f.v10)
-    m = ax.pcolormesh(ds.lon, ds.lat, speed, cmap="viridis", shading="auto")
+    u, v = smooth(f.u10, 0.7), smooth(f.v10, 0.7)
+    m = ax.pcolormesh(lon, lat, np.hypot(u, v), cmap="viridis", shading="gouraud")
     fig.colorbar(m, ax=ax, label="10 m wind speed (m/s)")
     s = slice(None, None, 6)
-    ax.quiver(ds.lon[s], ds.lat[s], f.u10[s, s], f.v10[s, s], color="w", scale=300)
+    ax.quiver(lon[s], lat[s], u[s, s], v[s, s], color="w", scale=300)
     ax.set_title("10 m wind")
 
     ax = axes[1, 0]
     total, hours = rain_24h(ds, lead)
-    rain = np.where(total >= RAIN_LEVELS[0], total, np.nan)
     cmap, norm = rain_cmap()
-    m = ax.pcolormesh(ds.lon, ds.lat, rain, cmap=cmap, norm=norm, shading="auto")
-    cb = fig.colorbar(m, ax=ax, label="mm", ticks=RAIN_LEVELS, spacing="uniform", extend="max")
+    m = ax.contourf(lon, lat, smooth(total, 0.8), levels=RAIN_LEVELS, cmap=cmap, norm=norm, extend="max")
+    cb = fig.colorbar(m, ax=ax, label="mm", ticks=RAIN_LEVELS, spacing="uniform")
     cb.ax.tick_params(labelsize=7)
     ax.set_title(f"Rainfall, {int(hours)} h total to +{int(lead)} h")
 
     ax = axes[1, 1]
-    m = ax.pcolormesh(ds.lon, ds.lat, f.tcwv, cmap="BrBG", shading="auto")
+    m = ax.pcolormesh(lon, lat, smooth(f.tcwv, 0.7), cmap="BrBG", shading="gouraud")
     fig.colorbar(m, ax=ax, label="kg/m2")
     ax.set_title("Total column water vapour")
 
     for ax in axes.flat:
-        coast(ax, ds)
+        draw_boundaries(ax, ds)
     fig.suptitle(f"MasRainMan AI  init {ds.attrs['init_time']}  +{int(lead)} h  (valid {valid} UTC)")
     fig.tight_layout()
-    fig.savefig(out, dpi=110)
+    fig.savefig(out, dpi=130)
     plt.close(fig)
     print(f"wrote {out}")
 
