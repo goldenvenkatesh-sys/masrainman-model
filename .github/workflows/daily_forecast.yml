@@ -11,6 +11,8 @@ on:
     - cron: "30 8 * * *"    # 14:00 IST, after ECMWF's 00 UTC run is published
     - cron: "17 10 * * *"   # 15:47 IST backup
     - cron: "43 12 * * *"   # 18:13 IST backup
+    - cron: "35 20 * * *"   # 02:05 IST, after ECMWF's 12 UTC run is published
+    - cron: "52 22 * * *"   # 04:22 IST backup
   workflow_dispatch:        # "Run workflow" button on the Actions tab
   push:                     # and at once whenever a new model or this workflow is pushed
     branches: [main]
