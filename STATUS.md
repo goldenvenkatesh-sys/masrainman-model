@@ -150,6 +150,14 @@ Training also resumes: stop with Ctrl+C, then rerun with `--resume`.
 latest ECMWF open-data run. Maps go to the `live` branch (README shows them; replaced daily),
 full netCDF output is the run's artifact (kept 14 days). ~5-10 Actions minutes per run, well
 inside the 2000 free minutes a month for private repos.
+Backup run times 15:47 and 18:13 IST (GitHub started the first scheduled run 10 h late);
+scheduled runs stop at once when `cycle.txt` on `live` already has the newest ECMWF run. Each run
+publishes a map per day (+24 ... +240 h) and `manifest.json`.
+**On the WeatherNext3 site** (Cloudflare project masrainman-wn3): page `<site>/ai/`, button
+"MasRainMan AI (10-day)" on the main page. Made by `masrainman-weathernext3` repo's
+`.github/workflows/masrainman-ai.yml` (+ `web/ai.html`), which copies the `live` branch maps into
+site-data and redeploys (14:55, 16:35, 19:05 IST). Needs the secret MASRAINMAN_MODEL_TOKEN there
+(fine-grained token, read-only Contents on masrainman-model).
 Rain maps use the MasRainMan standard colour bar (same as the Rain Alarm app's app.js):
 24-h totals, 1-300+ mm. The laptop version (`scripts\live_daily.ps1`; its Task Scheduler task was removed 2 Nov, reinstall via
 `scripts\install_daily_forecast.ps1`) still works for local runs. Live maps are a little noisier
