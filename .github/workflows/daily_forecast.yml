@@ -5,8 +5,12 @@
 name: Daily forecast
 
 on:
+  # GitHub often starts scheduled runs late (hours, when busy), so there are backup times.
+  # A scheduled run stops straight away if the live branch already has the newest ECMWF run.
   schedule:
-    - cron: "30 8 * * *"   # 08:30 UTC = 14:00 IST, after ECMWF's 00 UTC run is published
+    - cron: "30 8 * * *"    # 14:00 IST, after ECMWF's 00 UTC run is published
+    - cron: "17 10 * * *"   # 15:47 IST backup
+    - cron: "43 12 * * *"   # 18:13 IST backup
   workflow_dispatch:        # "Run workflow" button on the Actions tab
   push:                     # and at once whenever a new model or this workflow is pushed
     branches: [main]
@@ -30,15 +34,32 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-live.txt
 
+      - name: Newest ECMWF run, already published?
+        id: check
+        run: |
+          pip install -q ecmwf-opendata
+          cycle=$(python -c "from ecmwf.opendata import Client; t = Client(source='ecmwf', model='ifs', resol='0p25').latest(stream='oper', type='fc', step=240, param='2t'); print(t.strftime('%Y-%m-%dT%H'))" | tail -1)
+          tag=$(echo "$cycle" | tr -d 'T-')
+          done=$( (git fetch -q --depth 1 origin live && git show FETCH_HEAD:cycle.txt) 2>/dev/null || true)
+          echo "newest ECMWF run $cycle, live branch has '${done}'"
+          echo "cycle=$cycle" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$done" = "$tag" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Forecast for $cycle is already published - nothing to do"
+          fi
+
       - name: Install
+        if: steps.check.outputs.skip != 'true'
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements-live.txt
 
       - name: Forecast
-        run: python -u -m masrainman.live_forecast --ckpt operational/model.pt --data-dir operational --run-dir out --plot
+        if: steps.check.outputs.skip != 'true'
+        run: python -u -m masrainman.live_forecast --ckpt operational/model.pt --data-dir operational --run-dir out --plot --cycle ${{ steps.check.outputs.cycle }}
 
       - name: Keep the full output
+        if: steps.check.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: masrainman-forecast
@@ -46,6 +67,7 @@ jobs:
           retention-days: 14
 
       - name: Publish maps to the live branch
+        if: steps.check.outputs.skip != 'true'
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -54,6 +76,7 @@ jobs:
           tag=$(basename "$nc" .nc); tag=${tag#fc_}
           mkdir pub
           cp out/live/fc_${tag}_*.png pub/
+          echo "$tag" > pub/cycle.txt   # read by the "already published?" check
           {
             echo "# MasRainMan AI forecast"
             echo
