@@ -65,47 +65,86 @@ def smooth(field, sigma):
     return gaussian_filter(np.asarray(field, dtype=np.float32), sigma, mode="nearest")
 
 
-def plot_lead(ds, lead, out):
-    f = ds.sel(lead=lead)
-    valid = str(f.valid_time.values)[:13].replace("T", " ")
-    lon, lat = ds.lon, ds.lat
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-    ax = axes[0, 0]
-    m = ax.pcolormesh(lon, lat, smooth(f.t2m, 0.7), cmap="RdYlBu_r", shading="gouraud")
+def panel_t2m_msl(fig, ax, ds, f, lead):
+    m = ax.pcolormesh(ds.lon, ds.lat, smooth(f.t2m, 0.7), cmap="RdYlBu_r", shading="gouraud")
     fig.colorbar(m, ax=ax, label="2 m temperature (degC)")
-    cs = ax.contour(lon, lat, smooth(f.msl, 1.5), levels=np.arange(980, 1030, 2), colors="k", linewidths=0.7)
+    cs = ax.contour(ds.lon, ds.lat, smooth(f.msl, 1.5), levels=np.arange(980, 1030, 2), colors="k", linewidths=0.7)
     ax.clabel(cs, fontsize=7, fmt="%d")
-    ax.set_title("Temperature + MSLP (hPa)")
+    return "Temperature + MSLP (hPa)"
 
-    ax = axes[0, 1]
+
+def panel_msl(fig, ax, ds, f, lead):
+    msl = smooth(f.msl, 1.5)
+    m = ax.contourf(ds.lon, ds.lat, msl, levels=np.arange(990, 1025, 1), cmap="RdYlBu_r", extend="both")
+    fig.colorbar(m, ax=ax, label="hPa", ticks=np.arange(990, 1025, 2))
+    cs = ax.contour(ds.lon, ds.lat, msl, levels=np.arange(980, 1030, 2), colors="k", linewidths=0.6)
+    ax.clabel(cs, fontsize=7, fmt="%d")
+    return "Mean sea level pressure"
+
+
+def panel_t2m(fig, ax, ds, f, lead):
+    m = ax.pcolormesh(ds.lon, ds.lat, smooth(f.t2m, 0.7), cmap="RdYlBu_r", shading="gouraud")
+    fig.colorbar(m, ax=ax, label="degC")
+    return "2 m temperature"
+
+
+def panel_wind(fig, ax, ds, f, lead):
     u, v = smooth(f.u10, 0.7), smooth(f.v10, 0.7)
-    m = ax.pcolormesh(lon, lat, np.hypot(u, v), cmap="viridis", shading="gouraud")
-    fig.colorbar(m, ax=ax, label="10 m wind speed (m/s)")
+    m = ax.pcolormesh(ds.lon, ds.lat, np.hypot(u, v), cmap="viridis", shading="gouraud")
+    fig.colorbar(m, ax=ax, label="m/s")
     s = slice(None, None, 6)
-    ax.quiver(lon[s], lat[s], u[s, s], v[s, s], color="w", scale=300)
-    ax.set_title("10 m wind")
+    ax.quiver(ds.lon[s], ds.lat[s], u[s, s], v[s, s], color="w", scale=300)
+    return "10 m wind"
 
-    ax = axes[1, 0]
+
+def panel_rain(fig, ax, ds, f, lead):
     total, hours = rain_24h(ds, lead)
     cmap, norm = rain_cmap()
-    m = ax.contourf(lon, lat, smooth(total, 0.8), levels=RAIN_LEVELS, cmap=cmap, norm=norm, extend="max")
+    m = ax.contourf(ds.lon, ds.lat, smooth(total, 0.8), levels=RAIN_LEVELS, cmap=cmap, norm=norm, extend="max")
     cb = fig.colorbar(m, ax=ax, label="mm", ticks=RAIN_LEVELS, spacing="uniform")
     cb.ax.tick_params(labelsize=7)
-    ax.set_title(f"Rainfall, {int(hours)} h total to +{int(lead)} h")
+    return f"Rainfall, {int(hours)} h total to +{int(lead)} h"
 
-    ax = axes[1, 1]
-    m = ax.pcolormesh(lon, lat, smooth(f.tcwv, 0.7), cmap="BrBG", shading="gouraud")
+
+def panel_tcwv(fig, ax, ds, f, lead):
+    m = ax.pcolormesh(ds.lon, ds.lat, smooth(f.tcwv, 0.7), cmap="BrBG", shading="gouraud")
     fig.colorbar(m, ax=ax, label="kg/m2")
-    ax.set_title("Total column water vapour")
+    return "Total column water vapour"
 
-    for ax in axes.flat:
+
+# One map per parameter (the names are used in file names and by web pages)
+PARAMS = {"rain": panel_rain, "mslp": panel_msl, "t2m": panel_t2m, "wind": panel_wind, "tcwv": panel_tcwv}
+
+
+def _title(ds, f, lead):
+    valid = str(f.valid_time.values)[:13].replace("T", " ")
+    return f"MasRainMan AI  init {ds.attrs['init_time']}  +{int(lead)} h  (valid {valid} UTC)"
+
+
+def plot_lead(ds, lead, out):
+    """All four panels on one page."""
+    f = ds.sel(lead=lead)
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    for ax, panel in zip(axes.flat, (panel_t2m_msl, panel_wind, panel_rain, panel_tcwv)):
+        ax.set_title(panel(fig, ax, ds, f, lead))
         draw_boundaries(ax, ds)
-    fig.suptitle(f"MasRainMan AI  init {ds.attrs['init_time']}  +{int(lead)} h  (valid {valid} UTC)")
+    fig.suptitle(_title(ds, f, lead))
     fig.tight_layout()
     fig.savefig(out, dpi=130)
     plt.close(fig)
     print(f"wrote {out}")
+
+
+def plot_param(ds, lead, param, out):
+    """One parameter, one large map."""
+    f = ds.sel(lead=lead)
+    fig, ax = plt.subplots(figsize=(10, 8.6))
+    name = PARAMS[param](fig, ax, ds, f, lead)
+    draw_boundaries(ax, ds)
+    ax.set_title(f"{name}\n{_title(ds, f, lead)}", fontsize=12)
+    fig.tight_layout()
+    fig.savefig(out, dpi=120)
+    plt.close(fig)
 
 
 def main():

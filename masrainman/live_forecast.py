@@ -26,7 +26,7 @@ def main():
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--cycle", help="ECMWF 00/12 UTC run, e.g. 2026-10-28T00 (default: latest complete run)")
     ap.add_argument("--days", type=float, default=10)
-    ap.add_argument("--plot", action="store_true", help="also draw a map for every day (+24 h ... +240 h) and a maps.json list")
+    ap.add_argument("--plot", action="store_true", help="also draw a map per parameter for every day (+24 h ... +240 h) and a maps.json list")
     ap.add_argument("--data-dir", help="folder with processed/stats.npz and static.npy; also caches "
                                        "ECMWF data (default: data_dir of the checkpoint's config)")
     ap.add_argument("--run-dir", help="output root; maps go to <run-dir>/live (default: from the config)")
@@ -49,14 +49,18 @@ def main():
         import pandas as pd
         import xarray as xr
 
-        from .plot import plot_lead
+        from .plot import PARAMS, plot_param
         ds = xr.open_dataset(path)
         maps = []
         for lead in range(24, int(ds.lead.values.max()) + 1, 24):  # one map per day
-            png = path.with_name(f"{path.stem}_{lead:03d}h.png")
-            plot_lead(ds, lead, png)
+            files = {}
+            for param in PARAMS:
+                png = path.with_name(f"{path.stem}_{param}_{lead:03d}h.png")
+                plot_param(ds, lead, param, png)
+                files[param] = png.name
             valid = pd.Timestamp(ds.valid_time.sel(lead=lead).values)
-            maps.append({"lead": lead, "valid": valid.strftime("%Y-%m-%dT%H"), "file": png.name})
+            maps.append({"lead": lead, "valid": valid.strftime("%Y-%m-%dT%H"), "files": files})
+            print(f"maps for +{lead} h")
         # read by web pages that show the maps (e.g. the WeatherNext3 site's MasRainMan AI page)
         manifest = {"init": pd.Timestamp(cycle).strftime("%Y-%m-%dT%H"), "model": "MasRainMan AI",
                     "made_utc": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M"), "maps": maps}
