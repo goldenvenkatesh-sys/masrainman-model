@@ -1,0 +1,10 @@
+{
+ "started_utc": "2026-11-04T11:44",
+ "promoted": false,
+ "analyses": {
+  "count": 1,
+  "first": "2026-11-04T00",
+  "last": "2026-11-04T00"
+ },
+ "decision": "only 0.0 days of analyses; fine-tuning starts at 25"
+}
