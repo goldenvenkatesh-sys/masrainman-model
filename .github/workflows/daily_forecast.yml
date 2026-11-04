@@ -14,12 +14,18 @@ on:
     - cron: "35 20 * * *"   # 02:05 IST, after ECMWF's 12 UTC run is published
     - cron: "52 22 * * *"   # 04:22 IST backup
   workflow_dispatch:        # "Run workflow" button on the Actions tab
+    inputs:
+      backfill:
+        description: "Verification: also archive earlier 00 UTC forecasts kept as artifacts"
+        type: boolean
+        default: false
   push:                     # and at once whenever a new model or this workflow is pushed
     branches: [main]
     paths: [operational/**, .github/workflows/daily_forecast.yml]
 
 permissions:
   contents: write
+  actions: read
 
 concurrency: daily-forecast
 
@@ -98,3 +104,13 @@ jobs:
           git commit -q -m "Forecast $tag"
           # the live branch only ever holds the latest forecast, so it is replaced each day
           git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" live
+
+      # Never fails the forecast: the maps above are already published
+      - name: Verification against gauges and airports
+        if: steps.check.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          BACKFILL: ${{ github.event.inputs.backfill }}
+        run: bash scripts/verify_ci.sh
