@@ -8,8 +8,8 @@ archive  keeps the small part of a 00 UTC forecast that is needed later: 24-h ra
 update   collects the gauges and airport reports, scores every forecast with observations
          and writes the Verification page's data and maps to the site folder.
 
-Rain: 24-h totals of the state gauges (TN-SMART, Kerala, Andhra Pradesh, Telangana; the same
-files as the MasRainman rain reports) averaged onto the model's 0.25 deg cells. Rain-day D ends
+Rain: 24-h totals of the state gauges (TN-SMART, Kerala, Karnataka, Andhra Pradesh, Telangana;
+the same files as the MasRainman rain reports) averaged onto the model's 0.25 deg cells. Rain-day D ends
 08:30 IST on D; forecast Day k of a 00 UTC run ends 05:30 IST, so 21 of the 24 hours overlap.
 Scores are stored as sums so the page can add up any period and region.
 MSLP and wind: airport reports (METAR), whose QNH pressure equals MSLP near sea level.
@@ -32,8 +32,9 @@ SCALES = (1, 3, 5, 9)            # near-miss squares in cells: ~25, 75, 125, 225
 KEEP_DAYS = 180
 MAP_DAYS = 30
 MAP_LEADS = (1, 2, 3, 5)
-REGIONS = {"tn": 1, "kl": 2, "ap": 3, "tg": 4}
-REGION_NAMES = {"all": "South India", "tn": "Tamil Nadu", "kl": "Kerala", "ap": "Andhra Pradesh", "tg": "Telangana"}
+REGIONS = {"tn": 1, "kl": 2, "ap": 3, "tg": 4, "ka": 5}
+REGION_NAMES = {"all": "South India", "tn": "Tamil Nadu", "kl": "Kerala", "ka": "Karnataka", "ap": "Andhra Pradesh",
+                "tg": "Telangana"}
 MODEL_NAMES = {"masrainman": "MasRainMan AI", "ifs": "ECMWF IFS", "aifs": "ECMWF AIFS"}
 
 # ICAO: name, lat, lon, elevation (m). Above about 300 m QNH is not quite MSLP: read the bias with care.
@@ -185,6 +186,9 @@ def gauges(day):
     js = _json(f"{REPORT_DATA}/tg/daily/{d}.json")
     if js and "points" in js:
         out["tg"] = clean([(s.get("lat"), s.get("lon"), s.get("rain")) for s in js["points"]])
+    js = _json(f"{REPORT_DATA}/ka/daily/{d}.json")  # running totals up to the day's last live check
+    if js:
+        out["ka"] = clean([tuple(p) for p in js["points"]])
     return {k: v for k, v in out.items() if v}
 
 

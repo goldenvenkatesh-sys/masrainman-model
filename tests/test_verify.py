@@ -95,3 +95,15 @@ def test_airport_errors_go_to_the_forecast_day_of_their_lead(tmp_path):
     day2 = [r for r in recs if r["day"] == "2026-11-03" and r["lead"] == 2][0]
     assert day1["np_"] == 1 and day1["sp"] == 2 and day1["ssw"] == 4   # wind 5 m/s forecast, 3 observed
     assert day2["np_"] == 0 and day2["nw"] == 1 and day2["sw"] == 0
+
+
+def test_gauges_reads_every_state_file(monkeypatch):
+    files = {"kerala": {"stations": [{"lat": 10.0, "lon": 76.0, "rain": 5}]},
+             "ap/daily": {"rain": {"7": 2.0, "unknown": 9.0}}, "ap/stations": {"7": {"lat": 16.0, "lon": 80.0}},
+             "tg/daily": {"points": [{"lat": 17.0, "lon": 78.0, "rain": 1}]},
+             "ka/daily": {"points": [[13.0, 76.0, 3.0], [13.1, 76.1, None]]},
+             "hourly": [{"latitude": 11.0, "longitude": 79.0, "total": 4}]}
+    monkeypatch.setattr(v, "_json", lambda url, timeout=120: next((b for k, b in files.items() if k in url), None))
+    g = v.gauges(date(2026, 11, 3))
+    assert g == {"tn": [(11.0, 79.0, 4)], "kl": [(10.0, 76.0, 5)], "ap": [(16.0, 80.0, 2.0)],
+                 "tg": [(17.0, 78.0, 1)], "ka": [(13.0, 76.0, 3.0)]}
