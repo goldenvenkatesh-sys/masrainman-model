@@ -445,8 +445,10 @@ def update(args):
     site = Path(args.site)
     site.mkdir(parents=True, exist_ok=True)
     days = write_maps(args.data, site, lat, lon, today)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M")
+    (site / "stamp.txt").write_text(stamp + "\n")   # lets the site jobs notice new scores cheaply
     (site / "scores.json").write_text(json.dumps(
-        {"updated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M"),
+        {"updated_utc": stamp,
          "thresholds": THRESHOLDS, "scales": SCALES, "regions": REGION_NAMES, "models": MODEL_NAMES,
          "airports": {k: {"name": v[0], "elev": v[3]} for k, v in AIRPORTS.items()},
          "rain": rain, "points": points, "days": days}, separators=(",", ":")))
