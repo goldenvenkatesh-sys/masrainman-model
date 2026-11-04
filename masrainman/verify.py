@@ -4,7 +4,9 @@
   python -m masrainman.verify update --data vd --site vs
 
 archive  keeps the small part of a 00 UTC forecast that is needed later: 24-h rain and the
-         MSLP / wind at the airports, for MasRainMan and for ECMWF IFS and AIFS (rain).
+         MSLP / wind at the airports, for MasRainMan and the comparison models: ECMWF IFS and
+         AIFS, NCEP GFS, NOAA AIGFS, DWD ICON and CMC GDPS (masrainman/othermodels.py).
+         Missing comparison runs of the last few days are retried on every call.
 update   collects the gauges and airport reports, scores every forecast with observations
          and writes the Verification page's data and maps to the site folder.
 
@@ -35,7 +37,10 @@ MAP_LEADS = (1, 2, 3, 5)
 REGIONS = {"tn": 1, "kl": 2, "ap": 3, "tg": 4, "ka": 5}
 REGION_NAMES = {"all": "South India", "tn": "Tamil Nadu", "kl": "Kerala", "ka": "Karnataka", "ap": "Andhra Pradesh",
                 "tg": "Telangana"}
-MODEL_NAMES = {"masrainman": "MasRainMan AI", "ifs": "ECMWF IFS", "aifs": "ECMWF AIFS"}
+MODEL_NAMES = {"masrainman": "MasRainMan AI", "ifs": "ECMWF IFS", "aifs": "ECMWF AIFS", "gfs": "NCEP GFS",
+               "aigfs": "NOAA AIGFS", "icon": "DWD ICON", "gdps": "CMC GDPS"}
+OTHERS = [m for m in MODEL_NAMES if m != "masrainman"]
+CATCH_UP_DAYS = 3   # also retry the last days' missing comparison models (GFS/AIGFS stay online longer)
 
 # ICAO: name, lat, lon, elevation (m). Above about 300 m QNH is not quite MSLP: read the bias with care.
 AIRPORTS = {
@@ -126,32 +131,47 @@ def ecmwf_points(cfg, cycle, lat, lon, cache):
     return np.stack([at_points(a, lat, lon, pts) for a in (msl, u, v)], -1)
 
 
+def other_model(cfg, model, cycle, lat, lon, cache):
+    """(rain, points) of a comparison model for one 00 UTC run."""
+    if model in ("ifs", "aifs"):
+        pts = ecmwf_points(cfg, cycle, lat, lon, cache) if model == "ifs" else None
+        return ecmwf_rain(cfg, model, cycle), pts
+    from . import othermodels
+    return othermodels.fetch(model, cycle, lat, lon, list(AIRPORTS.values()), at_points)
+
+
 def archive(args):
+    import time
     cfg = load_config()
     ds = xr.open_dataset(args.nc)
     cycle = pd.Timestamp(ds.attrs["init_time"])
-    if cycle.hour != 0:
-        print(f"{cycle}: only 00 UTC runs are scored")
-        return
-    day = cycle.date()
     lat, lon = ds.lat.values, ds.lon.values
-    lead = ds.lead.values
-    tp = ds.tp.values
-    keep = lead > 0
-    pts = [a[1:3] for a in AIRPORTS.values()]
-    points = np.stack([at_points(ds[v].values[keep], lat, lon, pts) for v in ("msl", "u10", "v10")], -1)
-    save_fc(args.data, "masrainman", day, daily_rain(tp, lead), points)
-    print(f"archived MasRainMan {day}")
-    for model in ("ifs", "aifs"):
-        if fc_path(args.data, model, day).exists():
+    if cycle.hour == 0:
+        lead = ds.lead.values
+        keep = lead > 0
+        pts = [a[1:3] for a in AIRPORTS.values()]
+        points = np.stack([at_points(ds[v].values[keep], lat, lon, pts) for v in ("msl", "u10", "v10")], -1)
+        save_fc(args.data, "masrainman", cycle.date(), daily_rain(ds.tp.values, lead), points)
+        print(f"archived MasRainMan {cycle.date()}")
+    else:
+        print(f"{cycle}: only 00 UTC runs are scored; checking for missing comparison models")
+    models = args.models.split(",") if args.models else OTHERS
+    for k in range(CATCH_UP_DAYS):
+        day = cycle.date() - timedelta(days=k)
+        if not fc_path(args.data, "masrainman", day).exists():
             continue
-        try:
-            rain = ecmwf_rain(cfg, model, cycle)
-            ifs_pts = ecmwf_points(cfg, cycle, lat, lon, args.ecmwf_cache) if model == "ifs" else None
-            save_fc(args.data, model, day, rain, ifs_pts)
-            print(f"archived {model} {day}")
-        except Exception as e:  # the comparison model must never stop the check of our own
-            print(f"{model} {day}: not available ({e})")
+        run = pd.Timestamp(day)
+        for model in models:
+            if fc_path(args.data, model, day).exists():
+                continue
+            t0 = time.time()
+            try:
+                rain, pts = other_model(cfg, model, run, lat, lon, args.ecmwf_cache)
+                save_fc(args.data, model, day, rain, pts)
+                print(f"archived {model} {day}: {len(rain)} days, airports {'yes' if pts is not None else 'no'}"
+                      f" ({time.time() - t0:.0f} s)")
+            except Exception as e:  # a comparison model must never stop the check of our own
+                print(f"{model} {day}: not available ({type(e).__name__}: {str(e)[:200]})")
 
 
 # ---------------------------------------------------------------- observations
@@ -355,9 +375,14 @@ def check_map(day, lead, obs, fields, lat, lon, out):
     import matplotlib.pyplot as plt
     cmap, norm = rain_cmap()
     n = 1 + len(fields)
-    fig, axes = plt.subplots(1, n, figsize=(4.6 * n + 1, 5.2), squeeze=False)
+    ncol = min(n, 4)
+    nrow = -(-n // ncol)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(4.6 * ncol + 1, 5.2 * nrow), squeeze=False)
+    flat = axes.ravel()
+    for ax in flat[n:]:
+        ax.set_visible(False)
     box = xr.Dataset(coords={"lat": [7.0, 21.0], "lon": [72.5, 86.5]})
-    ax = axes[0, 0]
+    ax = flat[0]
     ax.set_facecolor("#ffffff")
     ax.pcolormesh(lon, lat, np.ma.masked_invalid(np.where(obs < 1, 1.0, np.nan)), cmap="Greys", vmin=0, vmax=8,
                   shading="nearest")
@@ -365,7 +390,7 @@ def check_map(day, lead, obs, fields, lat, lon, out):
                       shading="nearest")
     ax.set_title(f"Observed gauges\nrain-day to 08:30 IST {day:%d %b %Y}", fontsize=10)
     draw_boundaries(ax, box)
-    for ax, (name, f) in zip(axes[0, 1:], fields.items()):
+    for ax, (name, f) in zip(flat[1:], fields.items()):
         ax.contourf(lon, lat, smooth(f, 0.8), levels=RAIN_LEVELS, cmap=cmap, norm=norm, extend="max")
         ax.set_title(f"{MODEL_NAMES[name]}\nDay {lead} forecast", fontsize=10)
         draw_boundaries(ax, box)
@@ -393,7 +418,9 @@ def write_maps(data, site, lat, lon, today):
             for model in MODEL_NAMES:
                 fp = fc_path(data, model, start)
                 if fp.exists():
-                    fields[model] = load_fc(fp)[0][lead - 1]
+                    r = load_fc(fp)[0]
+                    if len(r) >= lead:   # ICON's 00 UTC run reaches only Day 7
+                        fields[model] = r[lead - 1]
             if "masrainman" not in fields:
                 continue
             name = f"{day:%Y%m%d}_d{lead}.png"
@@ -433,6 +460,7 @@ def main():
     a.add_argument("--nc", required=True)
     a.add_argument("--data", required=True)
     a.add_argument("--ecmwf-cache", default="operational/ecmwf")
+    a.add_argument("--models", default="", help="comparison models to fetch (default: all), e.g. gfs,icon")
     a.set_defaults(fn=archive)
     u = sub.add_parser("update")
     u.add_argument("--data", required=True)

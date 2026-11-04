@@ -164,6 +164,11 @@ and airport series; obs_rain/: gauges on 0.25 deg cells, the future training tar
 The page data goes to `verif-site`, shown at `<site>/ai/verify/` (`web/ai_verify.html` in the
 WeatherNext3 repo). Rain: TN-SMART, Kerala, AP, Telangana and Karnataka gauges (KSNDMC's last live
 totals, saved by the rain-report repo to data/ka/daily). MSLP and wind: airport METARs. Scores on the page need ~30 days before they mean much.
+Comparison models (added 4 Nov 2026, `masrainman/othermodels.py`): besides IFS and AIFS, every 00 UTC
+run is now scored against NCEP GFS (AWS open data; rain + airport MSLP/wind), NOAA AIGFS (NOMADS;
+rain + airports), DWD ICON (rain, Day 1-7) and CMC GDPS (MSC Datamart; rain). Each run also retries
+comparison models missing from the last 3 days (DWD and MSC keep only ~1 day, so those can't catch up).
+Fetch one by hand: `python -m masrainman.verify archive --nc <fc.nc> --data vd --models gfs,icon`.
 Next: bias correction after ~30 days, retraining after 2-3 months, a stronger rain correction after a full season.
 Rain maps use the MasRainMan standard colour bar (same as the Rain Alarm app's app.js):
 24-h totals, 1-300+ mm. The laptop version (`scripts\live_daily.ps1`; its Task Scheduler task was removed 2 Nov, reinstall via
