@@ -142,7 +142,9 @@ python -m masrainman.evaluate --ckpt D:/masrainman_runs/baseline/best.pt
 ```
 Training also resumes: stop with Ctrl+C, then rerun with `--resume`.
 
-**Daily live forecasts: on GitHub Actions since 2 Nov 2026 (runs with the laptop off).**
+**Live forecasts: on GitHub Actions since 2 Nov 2026 (runs with the laptop off), four runs a day since
+4 Nov (00/06/12/18 UTC).** 06/18 UTC ECMWF runs reach only 90 h, so after +90 h the boundary ring
+comes from the 00/12 UTC run 6 h older (`ECMWFArchive.source`). Verification still scores 00 UTC runs only.
 `.github/workflows/daily_forecast.yml` runs daily at 08:30 UTC (14:00 IST), on every push of
 `operational/`, or by hand ("Run workflow" on the Actions tab). It uses the model packed in
 `operational/` (now the cyclone model; repack a new one with

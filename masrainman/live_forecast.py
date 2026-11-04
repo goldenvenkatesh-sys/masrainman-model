@@ -24,7 +24,7 @@ from .model import load_checkpoint
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--ckpt", required=True)
-    ap.add_argument("--cycle", help="ECMWF 00/12 UTC run, e.g. 2026-10-28T00 (default: latest complete run)")
+    ap.add_argument("--cycle", help="ECMWF run (00, 06, 12 or 18 UTC), e.g. 2026-10-28T06 (default: latest complete run)")
     ap.add_argument("--days", type=float, default=10)
     ap.add_argument("--plot", action="store_true", help="also draw a map per parameter for every day (+24 h ... +240 h) and a maps.json list")
     ap.add_argument("--data-dir", help="folder with processed/stats.npz and static.npy; also caches "

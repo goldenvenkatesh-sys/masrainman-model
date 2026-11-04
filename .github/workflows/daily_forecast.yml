@@ -1,4 +1,4 @@
-# MasRainMan daily 10-day forecast on GitHub's computers, so it runs with the laptop off.
+# MasRainMan 10-day forecast, four times a day (00/06/12/18 UTC runs), on GitHub's computers, so it runs with the laptop off.
 # Uses the model packed in operational/ (python -m masrainman.export_model) and the latest
 # ECMWF open-data run. The maps are published on the `live` branch (open it on GitHub to
 # see them, also on a phone); the full netCDF output is kept as a run artifact for 14 days.
@@ -7,12 +7,17 @@ name: Daily forecast
 on:
   # GitHub often starts scheduled runs late (hours, when busy), so there are backup times.
   # A scheduled run stops straight away if the live branch already has the newest ECMWF run.
+  # ECMWF open data: 00/12 UTC runs (240 h) are out by about 08:00 / 20:00 UTC, 06/18 UTC runs
+  # (90 h; the model takes later boundaries from the run 6 h older) by about 13:00 / 01:00 UTC.
   schedule:
-    - cron: "30 8 * * *"    # 14:00 IST, after ECMWF's 00 UTC run is published
-    - cron: "17 10 * * *"   # 15:47 IST backup
-    - cron: "43 12 * * *"   # 18:13 IST backup
-    - cron: "35 20 * * *"   # 02:05 IST, after ECMWF's 12 UTC run is published
-    - cron: "52 22 * * *"   # 04:22 IST backup
+    - cron: "30 8 * * *"    # 14:00 IST  00 UTC run
+    - cron: "17 10 * * *"   # 15:47 IST  backup
+    - cron: "38 13 * * *"   # 19:08 IST  06 UTC run
+    - cron: "21 15 * * *"   # 20:51 IST  backup
+    - cron: "35 20 * * *"   # 02:05 IST  12 UTC run
+    - cron: "52 22 * * *"   # 04:22 IST  backup
+    - cron: "38 1 * * *"    # 07:08 IST  18 UTC run
+    - cron: "21 3 * * *"    # 08:51 IST  backup
   workflow_dispatch:        # "Run workflow" button on the Actions tab
     inputs:
       backfill:
@@ -46,7 +51,12 @@ jobs:
         id: check
         run: |
           pip install -q ecmwf-opendata
-          cycle=$(python -c "from ecmwf.opendata import Client; t = Client(source='ecmwf', model='ifs', resol='0p25').latest(stream='oper', type='fc', step=240, param='2t'); print(t.strftime('%Y-%m-%dT%H'))" | tail -1)
+          # newest of the long (00/12 UTC, 240 h) and short (06/18 UTC, 90 h) runs
+          cycle=$(python -c "
+          from ecmwf.opendata import Client
+          c = Client(source='ecmwf', model='ifs', resol='0p25')
+          t = max(c.latest(stream=s, type='fc', step=n, param='2t') for s, n in (('oper', 240), ('scda', 90)))
+          print(t.strftime('%Y-%m-%dT%H'))" | tail -1)
           tag=$(echo "$cycle" | tr -d 'T-')
           done=$( (git fetch -q --depth 1 origin live && git show FETCH_HEAD:cycle.txt) 2>/dev/null || true)
           echo "newest ECMWF run $cycle, live branch has '${done}'"
@@ -103,7 +113,11 @@ jobs:
           git add .
           git commit -q -m "Forecast $tag"
           # the live branch only ever holds the latest forecast, so it is replaced each day
-          git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" live
+          for i in 1 2 3 4; do   # GitHub sometimes answers a push with a passing server error
+            git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" live && break
+            [ "$i" = 4 ] && exit 1
+            echo "push failed, retrying in $((i * 20)) s"; sleep $((i * 20))
+          done
 
       # Never fails the forecast: the maps above are already published
       - name: Verification against gauges and airports

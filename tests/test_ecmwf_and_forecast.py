@@ -55,3 +55,23 @@ def test_hourly_first_day(cfg):
     t2m = cfg["channels"].index("t2m")
     np.testing.assert_allclose(hourly[:, t2m, 0, 0], hours, atol=1e-5)  # linear in time
     np.testing.assert_allclose(hourly[:, tp], 1.0)                      # 1 mm per hour
+
+
+def test_06_utc_run_takes_late_boundaries_from_the_older_long_run(cfg):
+    c = np.datetime64("2026-11-04T06", "h")
+    a = ECMWFArchive(cfg, c, n_steps=40)
+    h = lambda n: np.timedelta64(n, "h")
+    base = np.datetime64("2026-11-04T00", "h")
+    assert a.source(c - h(6)) == (np.datetime64("2026-11-03T18", "h"), 6)
+    assert a.source(c + h(90)) == (c, 90)
+    assert a.source(c + h(96)) == (base, 102)
+    assert a.source(c + h(234)) == (base, 240)
+    assert a.source(c + h(240)) == (base, 240)       # held at the last step
+    need = a._needs()
+    assert max(need[c]) == 90 and min(need[base]) == 96 and max(need[base]) == 240
+
+
+def test_00_utc_run_uses_its_own_run_to_the_end(cfg):
+    a = ECMWFArchive(cfg, CYCLE, n_steps=40)
+    assert a.source(CYCLE + np.timedelta64(240, "h")) == (CYCLE, 240)
+    assert set(a._needs()) == {a.prev, CYCLE}

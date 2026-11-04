@@ -3,7 +3,9 @@
 Open data is free (CC-BY-4.0, credit ECMWF). Files are global, about 10 MB per time
 step, so each run is cut to the model domain right after download and saved as
 <data_dir>/ecmwf/<cycle>/fields.npz (a few MB); the global GRIB files are deleted.
-Only the 00 and 12 UTC runs reach 10 days, so those are the ones used.
+All four daily runs are used. 00 and 12 UTC (stream oper) reach 240 h. 06 and 18 UTC (stream
+scda) reach only 90 h, so beyond that the boundary ring comes from the 00/12 UTC run 6 h older, at
+the same valid time; its last 6 h (+234 to +240) hold the boundary of +234.
 """
 from pathlib import Path
 
@@ -30,7 +32,13 @@ ECMWF_FIELDS = {
     "u200": ("u", 200, None),
     "v200": ("v", 200, None),
 }
-RUN = np.timedelta64(12, "h")  # spacing of the 10-day (00/12 UTC) runs
+RUN = np.timedelta64(12, "h")  # the run used for the state 6 h before the start is this much older
+H6 = np.timedelta64(6, "h")
+LAST = {"oper": 240, "scda": 90}  # last forecast step in open data
+
+
+def stream(cycle):
+    return "oper" if pd.Timestamp(cycle).hour in (0, 12) else "scda"
 
 
 def cycle_dir(cfg, cycle):
@@ -89,7 +97,7 @@ def download_cycle(cfg, cycle, steps):
     for name, req in _requests(cfg).items():
         target = d / f"{name}.grib2"
         print(f"  ECMWF {ts:%Y-%m-%d %H}Z {name}: {len(missing)} steps ...", flush=True)
-        client.retrieve(date=ts.strftime("%Y%m%d"), time=ts.hour, stream="oper", type="fc",
+        client.retrieve(date=ts.strftime("%Y%m%d"), time=ts.hour, stream=stream(cycle), type="fc",
                         step=missing, target=str(target), **req)
         _crop(target, cfg, fields)
         target.unlink()
@@ -100,22 +108,35 @@ def download_cycle(cfg, cycle, steps):
 class ECMWFArchive:
     """Looks like dataset.Archive (get(t), has(t), step) but serves ECMWF open data:
     the run at `cycle` for the start and boundary ring; the run 12 h earlier for the
-    state 6 h before the start and for rain at the start (analyses carry no rain)."""
+    state 6 h before the start and for rain at the start (analyses carry no rain).
+    For 06/18 UTC runs, boundaries after +90 h come from the 00/12 UTC run 6 h earlier."""
 
     def __init__(self, cfg, cycle, n_steps):
         self.cfg = cfg
         self.step = np.timedelta64(cfg["step_hours"], "h")
         self.cycle = np.datetime64(cycle, "h")
-        if pd.Timestamp(self.cycle).hour not in (0, 12):
-            raise ValueError("ECMWF 10-day runs start at 00 or 12 UTC")
+        if pd.Timestamp(self.cycle).hour % 6:
+            raise ValueError("ECMWF runs start at 00, 06, 12 or 18 UTC")
         self.n_steps = n_steps
         self.prev = self.cycle - RUN
+        self.own_last = LAST[stream(self.cycle)]
+        self.base = self.cycle if self.own_last >= 240 else self.cycle - H6   # an oper run
         self._fields = {}
 
-    def prefetch(self):
+    def _needs(self):
+        """{run: steps} for the whole forecast."""
         sh = self.cfg["step_hours"]
-        self._fields[self.prev] = download_cycle(self.cfg, self.prev, [0, 6, 12])
-        self._fields[self.cycle] = download_cycle(self.cfg, self.cycle, list(range(0, self.n_steps * sh + 1, sh)))
+        need = {self.prev: {0, sh, 2 * sh}, self.cycle: set()}
+        for k in range(self.n_steps + 1):
+            run, step = self.source(self.cycle + k * self.step)
+            need.setdefault(run, set()).add(step)
+            if step >= sh:
+                need[run].add(step - sh)   # rain is a difference of running totals
+        return need
+
+    def prefetch(self):
+        for run, steps in self._needs().items():
+            self._fields[run] = download_cycle(self.cfg, run, sorted(steps))
 
     def _f(self, cycle, short, level, step):
         if cycle not in self._fields:
@@ -127,7 +148,10 @@ class ECMWFArchive:
         t = np.datetime64(t, "h")
         if t < self.cycle:
             return self.prev, int((t - self.prev) / np.timedelta64(1, "h"))
-        return self.cycle, int((t - self.cycle) / np.timedelta64(1, "h"))
+        lead = int((t - self.cycle) / np.timedelta64(1, "h"))
+        if lead <= self.own_last:
+            return self.cycle, lead
+        return self.base, min(int((t - self.base) / np.timedelta64(1, "h")), LAST["oper"])
 
     def has(self, t):
         return True
@@ -152,7 +176,7 @@ class ECMWFArchive:
 
 
 def latest_cycle(cfg):
-    """Most recent 00/12 UTC run with all 10 days published."""
-    when = Client(source="ecmwf", model="ifs", resol="0p25").latest(
-        stream="oper", type="fc", step=240, param="2t")
-    return np.datetime64(pd.Timestamp(when), "h")
+    """Most recent run (00, 06, 12 or 18 UTC) with all its steps published."""
+    client = Client(source="ecmwf", model="ifs", resol="0p25")
+    runs = [client.latest(stream=st, type="fc", step=last, param="2t") for st, last in LAST.items()]
+    return np.datetime64(pd.Timestamp(max(runs)), "h")
