@@ -50,13 +50,10 @@ jobs:
       - name: Newest ECMWF run, already published?
         id: check
         run: |
-          pip install -q ecmwf-opendata
-          # newest of the long (00/12 UTC, 240 h) and short (06/18 UTC, 90 h) runs
-          cycle=$(python -c "
-          from ecmwf.opendata import Client
-          c = Client(source='ecmwf', model='ifs', resol='0p25')
-          t = max(c.latest(stream=s, type='fc', step=n, param='2t') for s, n in (('oper', 240), ('scda', 90)))
-          print(t.strftime('%Y-%m-%dT%H'))" | tail -1)
+          pip install -q requests
+          # newest complete run: 00/12 UTC (240 h) or 06/18 UTC (90 h)
+          cycle=$(python -m masrainman.latest | tail -1)
+          [ -n "$cycle" ] || { echo "::error::Could not find the newest ECMWF run"; exit 1; }
           tag=$(echo "$cycle" | tr -d 'T-')
           done=$( (git fetch -q --depth 1 origin live && git show FETCH_HEAD:cycle.txt) 2>/dev/null || true)
           echo "newest ECMWF run $cycle, live branch has '${done}'"

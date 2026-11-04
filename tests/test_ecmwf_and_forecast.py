@@ -75,3 +75,14 @@ def test_00_utc_run_uses_its_own_run_to_the_end(cfg):
     a = ECMWFArchive(cfg, CYCLE, n_steps=40)
     assert a.source(CYCLE + np.timedelta64(240, "h")) == (CYCLE, 240)
     assert set(a._needs()) == {a.prev, CYCLE}
+
+
+def test_latest_run_picks_the_newest_complete_one():
+    from datetime import datetime, timezone
+    from masrainman.latest import index_url, latest
+    now = datetime(2026, 11, 4, 14, 20, tzinfo=timezone.utc)
+    out = {index_url(datetime(2026, 11, 4, 0, tzinfo=timezone.utc))}
+    assert latest(now, exists=out.__contains__).hour == 0          # 12 not run yet, 06 not complete
+    out.add(index_url(datetime(2026, 11, 4, 6, tzinfo=timezone.utc)))
+    assert latest(now, exists=out.__contains__).hour == 6
+    assert "/06z/ifs/0p25/scda/2026110406" in index_url(datetime(2026, 11, 4, 6)) and "-90h-scda" in index_url(datetime(2026, 11, 4, 6))

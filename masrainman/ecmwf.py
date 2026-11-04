@@ -177,6 +177,5 @@ class ECMWFArchive:
 
 def latest_cycle(cfg):
     """Most recent run (00, 06, 12 or 18 UTC) with all its steps published."""
-    client = Client(source="ecmwf", model="ifs", resol="0p25")
-    runs = [client.latest(stream=st, type="fc", step=last, param="2t") for st, last in LAST.items()]
-    return np.datetime64(pd.Timestamp(max(runs)), "h")
+    from .latest import latest
+    return np.datetime64(pd.Timestamp(latest()).tz_localize(None), "h")
