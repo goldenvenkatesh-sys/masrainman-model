@@ -30,6 +30,8 @@ def main():
     ap.add_argument("--data-dir", help="folder with processed/stats.npz and static.npy; also caches "
                                        "ECMWF data (default: data_dir of the checkpoint's config)")
     ap.add_argument("--run-dir", help="output root; maps go to <run-dir>/live (default: from the config)")
+    ap.add_argument("--save-analysis", help="folder to keep this run's start state in, for fine-tuning "
+                                            "(masrainman/finetune.py); ECMWF deletes its runs after a few days")
     args = ap.parse_args()
 
     model, cfg = load_checkpoint(args.ckpt, args.data_dir)
@@ -41,6 +43,9 @@ def main():
 
     arch = ECMWFArchive(cfg, cycle, n_steps)
     arch.prefetch()
+    if args.save_analysis:
+        from .finetune import save_analysis
+        print(f"kept start state {save_analysis(args.save_analysis, cycle, arch.get(cycle), Stats(cfg))}")
     path = run_and_save(cfg, model, arch, Stats(cfg), cycle, n_steps, run_dir(cfg, "live"),
                         "live forecast with ECMWF open-data start and boundaries")
     if args.plot:

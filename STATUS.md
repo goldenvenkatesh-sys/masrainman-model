@@ -171,6 +171,14 @@ run is now scored against NCEP GFS (AWS open data; rain + airport MSLP/wind), NO
 rain + airports), DWD ICON (rain, Day 1-7) and CMC GDPS (MSC Datamart; rain). Each run also retries
 comparison models missing from the last 3 days (DWD and MSC keep only ~1 day, so those can't catch up).
 Fetch one by hand: `python -m masrainman.verify archive --nc <fc.nc> --data vd --models gfs,icon`.
+**Fine-tuning (set up 4 Nov 2026).** Every forecast run keeps its ECMWF start state on branch
+`train-data` (ana/YYYYMMDDHH.npz, normalised float16, ~0.3 MB; ECMWF deletes runs after a few days).
+`.github/workflows/finetune.yml` (1st of each month, or by hand) runs `masrainman/finetune.py`: 24-h
+rollouts on those states + a 24-h rain loss against the gauges (00 UTC windows) + a pull towards the
+old weights; then old and new model forecast 5 days from each 00 UTC start in the last 8 days (held out)
+and the new one replaces operational/model.pt only if gauge-rain RMSE (Days 1-3) is >=1% lower and the
+other fields are no more than 1% worse. Needs >=25 days of start states (first real run ~1 Dec 2026).
+Reports: train-data branch reports/, and the run's artifact. CPU: ~1.6 s per step, 1200 steps ~35 min.
 Next: bias correction after ~30 days, retraining after 2-3 months, a stronger rain correction after a full season.
 Rain maps use the MasRainMan standard colour bar (same as the Rain Alarm app's app.js):
 24-h totals, 1-300+ mm. The laptop version (`scripts\live_daily.ps1`; its Task Scheduler task was removed 2 Nov, reinstall via

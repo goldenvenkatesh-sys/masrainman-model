@@ -1,0 +1,91 @@
+# Monthly fine-tune of the operational model on the saved ECMWF start states (train-data branch)
+# and the state rain gauges (verif-data branch). The new model replaces operational/model.pt only
+# if it beats the old one on the held-out last days (gauge rain Days 1-3, and no worse on the other
+# fields). The report is the run's artifact and is kept on the train-data branch (reports/).
+name: Fine-tune
+
+on:
+  schedule:
+    - cron: "13 4 1 * *"      # 1st of every month, 09:43 IST
+  workflow_dispatch:
+    inputs:
+      steps:
+        description: "Training steps (about 1.5-2 s each)"
+        default: "1200"
+      promote:
+        description: "Replace the operational model if the new one verifies better"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency: finetune
+
+jobs:
+  finetune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-live.txt
+
+      - name: Install
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-live.txt
+
+      - name: Get the saved start states and gauges
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          remote="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git clone -q --depth 1 -b train-data "$remote" td
+          git clone -q --depth 1 -b verif-data "$remote" vd || mkdir -p vd/obs_rain
+          echo "$(ls td/ana | wc -l) start states, $(ls vd/obs_rain | wc -l) gauge days"
+
+      - name: Fine-tune and compare
+        run: |
+          python -u -m masrainman.finetune --analyses td/ana --obs vd/obs_rain \
+            --ckpt operational/model.pt --data-dir operational --out ft --threads 4 \
+            --steps ${{ github.event.inputs.steps || '1200' }} \
+            ${{ (github.event_name == 'schedule' || github.event.inputs.promote == 'true') && '--promote' || '' }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: finetune
+          path: ft/
+          retention-days: 90
+
+      - name: Keep the report
+        if: always()
+        run: |
+          [ -f ft/report.json ] || exit 0
+          cd td
+          git config user.name "masrainman-bot"
+          git config user.email "masrainman-bot@users.noreply.github.com"
+          mkdir -p reports && cp ../ft/report.json "reports/$(date -u +%Y%m%d).json"
+          git add reports && git commit -q -m "Fine-tune report $(date -u +%F)" && git push -q origin train-data || true
+
+      - name: Put the new model into service
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet operational/model.pt; then
+            echo "::notice::$(python -c "import json; print(json.load(open('ft/report.json'))['decision'])")"
+            exit 0
+          fi
+          git config user.name "masrainman-bot"
+          git config user.email "masrainman-bot@users.noreply.github.com"
+          git add operational/model.pt
+          git commit -q -m "Fine-tuned model: $(python -c "import json; print(json.load(open('ft/report.json'))['decision'])")"
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && break; sleep 20; done
+          # pushes made with this token start no workflows, so start the forecast by hand
+          gh workflow run daily_forecast.yml --ref main

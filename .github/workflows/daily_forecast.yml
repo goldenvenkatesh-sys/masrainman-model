@@ -71,7 +71,7 @@ jobs:
 
       - name: Forecast
         if: steps.check.outputs.skip != 'true'
-        run: python -u -m masrainman.live_forecast --ckpt operational/model.pt --data-dir operational --run-dir out --plot --cycle ${{ steps.check.outputs.cycle }}
+        run: python -u -m masrainman.live_forecast --ckpt operational/model.pt --data-dir operational --run-dir out --plot --cycle ${{ steps.check.outputs.cycle }} --save-analysis ana
 
       - name: Keep the full output
         if: steps.check.outputs.skip != 'true'
@@ -115,6 +115,32 @@ jobs:
             [ "$i" = 4 ] && exit 1
             echo "push failed, retrying in $((i * 20)) s"; sleep $((i * 20))
           done
+
+      # The start state of every run, for fine-tuning (masrainman/finetune.py). ECMWF deletes its
+      # runs after a few days, so this is the only copy. ~0.3 MB per run on the train-data branch.
+      - name: Keep the start state for fine-tuning
+        if: steps.check.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          remote="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git clone -q --depth 1 -b train-data "$remote" td 2>/dev/null; then
+            mkdir -p td && git -C td init -q -b train-data && git -C td remote add origin "$remote"
+          fi
+          mkdir -p td/ana && cp ana/*.npz td/ana/
+          cd td
+          git config user.name "masrainman-bot"
+          git config user.email "masrainman-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Start state $(ls ../ana)"
+          for i in 1 2 3 4; do
+            git push -q origin train-data && break
+            [ "$i" = 4 ] && exit 1
+            sleep $((i * 20)); git pull -q --rebase origin train-data || true
+          done
+          echo "train-data: $(ls ana | wc -l) start states"
 
       # Never fails the forecast: the maps above are already published
       - name: Verification against gauges and airports
