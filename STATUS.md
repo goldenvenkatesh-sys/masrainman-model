@@ -158,6 +158,13 @@ publishes a map per day (+24 ... +240 h) and `manifest.json`.
 `.github/workflows/masrainman-ai.yml` (+ `web/ai.html`), which copies the `live` branch maps into
 site-data and redeploys (14:55, 16:35, 19:05 IST). Needs the secret MASRAINMAN_MODEL_TOKEN there
 (fine-grained token, read-only Contents on masrainman-model).
+**Verification (since 4 Nov 2026):** `masrainman/verify.py`, run by `scripts/verify_ci.sh` after every
+forecast. 00 UTC runs only are archived on branch `verif-data` (fc/: 24-h rain for MasRainMan, IFS, AIFS
+and airport series; obs_rain/: gauges on 0.25 deg cells, the future training target; obs_metar.json).
+The page data goes to `verif-site`, shown at `<site>/ai/verify/` (`web/ai_verify.html` in the
+WeatherNext3 repo). Rain: TN-SMART, Kerala, AP, Telangana gauges (Karnataka has no archived daily
+totals yet). MSLP and wind: airport METARs. Scores on the page need ~30 days before they mean much.
+Next: bias correction after ~30 days, retraining after 2-3 months, a stronger rain correction after a full season.
 Rain maps use the MasRainMan standard colour bar (same as the Rain Alarm app's app.js):
 24-h totals, 1-300+ mm. The laptop version (`scripts\live_daily.ps1`; its Task Scheduler task was removed 2 Nov, reinstall via
 `scripts\install_daily_forecast.ps1`) still works for local runs. Live maps are a little noisier
