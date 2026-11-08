@@ -54,7 +54,7 @@ def main():
         import pandas as pd
         import xarray as xr
 
-        from .plot import PARAMS, plot_param
+        from .plot import PARAMS, plot_param, plot_rain_total, total_label
         ds = xr.open_dataset(path)
         maps = []
         for lead in range(24, int(ds.lead.values.max()) + 1, 24):  # one map per day
@@ -66,9 +66,18 @@ def main():
             valid = pd.Timestamp(ds.valid_time.sel(lead=lead).values)
             maps.append({"lead": lead, "valid": valid.strftime("%Y-%m-%dT%H"), "files": files})
             print(f"maps for +{lead} h")
+        # accumulated rain from the start of the run: 24 h, 3 days, 7 days and the whole run (10 days)
+        totals = []
+        for hours in sorted({24, 72, 168, int(ds.lead.values.max())}):
+            png = path.with_name(f"{path.stem}_raintotal_{hours:03d}h.png")
+            hours = plot_rain_total(ds, hours, png)
+            valid = pd.Timestamp(ds.valid_time.sel(lead=hours).values)
+            totals.append({"hours": hours, "label": total_label(hours), "valid": valid.strftime("%Y-%m-%dT%H"),
+                           "file": png.name})
+            print(f"rain total {total_label(hours)}")
         # read by web pages that show the maps (e.g. the WeatherNext3 site's MasRainMan AI page)
         manifest = {"init": pd.Timestamp(cycle).strftime("%Y-%m-%dT%H"), "model": "MasRainMan AI",
-                    "made_utc": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M"), "maps": maps}
+                    "made_utc": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M"), "maps": maps, "totals": totals}
         path.with_name(f"{path.stem}_maps.json").write_text(json.dumps(manifest, indent=1))
 
 

@@ -147,6 +147,34 @@ def plot_param(ds, lead, param, out):
     plt.close(fig)
 
 
+def rain_total(ds, hours):
+    """Rain total from the start of the run to +hours (capped at the last lead)."""
+    hours = min(hours, int(ds.lead.values.max()))
+    take = (ds.lead.values > 0) & (ds.lead.values <= hours)
+    return ds.tp.isel(lead=np.where(take)[0]).sum("lead"), hours
+
+
+def total_label(hours):
+    return f"{hours} h" if hours < 48 else f"{hours // 24} days"
+
+
+def plot_rain_total(ds, hours, out):
+    """Accumulated rain from the start of the run, one large map (24 h, 3 days, 7 days, 10 days)."""
+    total, hours = rain_total(ds, hours)
+    f = ds.sel(lead=hours)
+    fig, ax = plt.subplots(figsize=(10, 8.6))
+    cmap, norm = rain_cmap()
+    m = ax.contourf(ds.lon, ds.lat, smooth(total, 0.8), levels=RAIN_LEVELS, cmap=cmap, norm=norm, extend="max")
+    cb = fig.colorbar(m, ax=ax, label="mm", ticks=RAIN_LEVELS, spacing="uniform")
+    cb.ax.tick_params(labelsize=7)
+    draw_boundaries(ax, ds)
+    ax.set_title(f"Total rainfall, {total_label(hours)} (+0 to +{hours} h)\n{_title(ds, f, hours)}", fontsize=12)
+    fig.tight_layout()
+    fig.savefig(out, dpi=120)
+    plt.close(fig)
+    return hours
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("file")
