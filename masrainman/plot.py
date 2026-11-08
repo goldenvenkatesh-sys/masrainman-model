@@ -9,6 +9,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from . import masrainman_logo  # noqa: F401  (MasRainman logo + name on every saved map)
 from matplotlib.collections import LineCollection
 from matplotlib.colors import BoundaryNorm, ListedColormap
 import numpy as np
@@ -130,7 +131,7 @@ def plot_lead(ds, lead, out):
         draw_boundaries(ax, ds)
     fig.suptitle(_title(ds, f, lead))
     fig.tight_layout()
-    fig.savefig(out, dpi=130)
+    fig.savefig(out, dpi=130, bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)
     print(f"wrote {out}")
 
@@ -143,7 +144,7 @@ def plot_param(ds, lead, param, out):
     draw_boundaries(ax, ds)
     ax.set_title(f"{name}\n{_title(ds, f, lead)}", fontsize=12)
     fig.tight_layout()
-    fig.savefig(out, dpi=120)
+    fig.savefig(out, dpi=120, bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)
 
 
@@ -170,7 +171,7 @@ def plot_rain_total(ds, hours, out):
     draw_boundaries(ax, ds)
     ax.set_title(f"Total rainfall, {total_label(hours)} (+0 to +{hours} h)\n{_title(ds, f, hours)}", fontsize=12)
     fig.tight_layout()
-    fig.savefig(out, dpi=120)
+    fig.savefig(out, dpi=120, bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)
     return hours
 

@@ -373,6 +373,7 @@ def check_map(day, lead, obs, fields, lat, lon, out):
     """Observed gauge cells beside the forecasts of one rain-day, on the rain colour bar."""
     from .plot import RAIN_LEVELS, draw_boundaries, rain_cmap, smooth
     import matplotlib.pyplot as plt
+    from . import masrainman_logo  # noqa: F401  (MasRainman logo + name)
     cmap, norm = rain_cmap()
     n = 1 + len(fields)
     ncol = min(n, 4)
@@ -398,7 +399,7 @@ def check_map(day, lead, obs, fields, lat, lon, out):
     cax = fig.add_axes([0.94, 0.12, 0.012, 0.76])
     cb = fig.colorbar(m, cax=cax, label="mm in 24 h", ticks=RAIN_LEVELS, spacing="uniform", extend="max")
     cb.ax.tick_params(labelsize=6)
-    fig.savefig(out, dpi=95)
+    fig.savefig(out, dpi=95, bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)
 
 

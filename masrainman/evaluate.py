@@ -14,6 +14,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from . import masrainman_logo  # noqa: F401
 import numpy as np
 import torch
 
@@ -104,7 +105,7 @@ def main():
     axes.flat[0].legend()
     fig.suptitle(f"South India box, {len(inits)} forecasts, test years {test_years[0]}-{test_years[-1]}")
     fig.tight_layout()
-    fig.savefig(out / "scores.png", dpi=120)
+    fig.savefig(out / "scores.png", dpi=120, bbox_inches="tight", pad_inches=0.12)
 
     for name in show:
         c = chans.index(name)
