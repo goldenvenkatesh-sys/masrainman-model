@@ -1,4 +1,4 @@
-# Monthly fine-tune of the operational model on the saved ECMWF start states (train-data branch)
+# Weekly fine-tune of the operational model on the saved ECMWF start states (train-data branch)
 # and the state rain gauges (verif-data branch). The new model replaces operational/model.pt only
 # if it beats the old one on the held-out last days (gauge rain Days 1-3, and no worse on the other
 # fields). The report is the run's artifact and is kept on the train-data branch (reports/).
@@ -6,7 +6,7 @@ name: Fine-tune
 
 on:
   schedule:
-    - cron: "13 4 1 * *"      # 1st of every month, 09:43 IST
+    - cron: "13 4 * * 0"      # every Sunday, 09:43 IST (skips itself until 25 days of start states are saved)
   workflow_dispatch:
     inputs:
       steps:
