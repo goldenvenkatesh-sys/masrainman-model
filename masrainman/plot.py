@@ -98,6 +98,28 @@ def panel_wind(fig, ax, ds, f, lead):
     return "10 m wind"
 
 
+# 850 hPa wind speed bands (knots), same colours as the forecast-models site's 850 hPa maps
+W850_LEVELS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80]
+W850_COLORS = ["#f4f6fa", "#d6e6f5", "#a9cdee", "#72b4e3", "#3f97cf", "#43b07a", "#8fcf4c",
+               "#e3e04b", "#f6b13b", "#ef7a2d", "#dd3c2a", "#b0195a", "#7a1f87"]
+
+
+def panel_wind850(fig, ax, ds, f, lead):
+    """850 hPa wind (about 1.5 km up): speed in knots shaded, streamlines for the monsoon flow."""
+    u, v = smooth(f.u850, 0.8), smooth(f.v850, 0.8)
+    kt = np.hypot(u, v) * 1.943844
+    cmap = ListedColormap(W850_COLORS)
+    cmap.set_over("#4a0f5a")
+    m = ax.contourf(ds.lon, ds.lat, kt, levels=W850_LEVELS, cmap=cmap,
+                    norm=BoundaryNorm(W850_LEVELS, cmap.N), extend="max")
+    fig.colorbar(m, ax=ax, label="knots", ticks=W850_LEVELS)
+    lat = np.asarray(ds.lat, dtype=float)
+    k = slice(None, None, -1) if lat[0] > lat[-1] else slice(None)   # streamplot needs rising latitudes
+    ax.streamplot(np.asarray(ds.lon, dtype=float), lat[k], u[k], v[k], density=1.6, color="#1a1a1a",
+                  linewidth=0.7, arrowsize=0.9, arrowstyle="->")
+    return "850 hPa wind + streamlines"
+
+
 def panel_rain(fig, ax, ds, f, lead):
     total, hours = rain_24h(ds, lead)
     cmap, norm = rain_cmap()
@@ -114,7 +136,8 @@ def panel_tcwv(fig, ax, ds, f, lead):
 
 
 # One map per parameter (the names are used in file names and by web pages)
-PARAMS = {"rain": panel_rain, "mslp": panel_msl, "t2m": panel_t2m, "wind": panel_wind, "tcwv": panel_tcwv}
+PARAMS = {"rain": panel_rain, "mslp": panel_msl, "t2m": panel_t2m, "wind": panel_wind,
+          "wind850": panel_wind850, "tcwv": panel_tcwv}
 
 
 def _title(ds, f, lead):
