@@ -12,7 +12,7 @@ figure fractions and the logo, then the name, are placed inside the figure, endi
 centred on y_centre, so they sit on the same line as the chart title (used by the MSLP maps).
 
 A map figure can instead ask for a header: set fig.masrainman_top to the map axes and a header line is drawn
-above that map's title: the name centred over the map, the logo at the right corner (used by the AI model maps in plot.py;
+just above that map's title: the name centred over the map, the logo at the map's top-left corner (used by the AI model maps in plot.py;
 on a page with a figure title it goes above that title, centred on the page).
 """
 import os
@@ -50,22 +50,21 @@ def add_top_header(fig, map_ax, dpi=None):
     w = h * img.shape[1] / img.shape[0] * fh / fw
     renderer = fig.canvas.get_renderer()
     sup = getattr(fig, "_suptitle", None)
+    map_ax.apply_aspect()
+    left = map_ax.get_position().x0
     if sup is not None and sup.get_text():       # page title: centre on the page, above it
-        xc = 0.5
+        xc, left = 0.5, 0.004
         top = sup.get_window_extent(renderer).y1 / fig.bbox.height
     else:
         map_ax.apply_aspect()                    # the drawn map box (equal aspect shrinks it)
         box = map_ax.get_position()
         xc = box.x0 + box.width / 2
         top = max(box.y1, map_ax.title.get_window_extent(renderer).y1 / fig.bbox.height)
-    for a in fig.axes:                           # also clear the colour bar (and its end arrow)
-        if a.get_label() != TAG:
-            top = max(top, a.get_tightbbox(renderer).y1 / fig.bbox.height)
-    y0 = top + 0.012
+    y0 = top + 0.006                             # right on top of the title
     colour = "white" if dark else "#1d63ba"
-    fig.text(xc, y0 + h * 0.5, "MasRainman", ha="center", va="center", fontsize=20,
+    fig.text(xc, y0, "MasRainman", ha="center", va="bottom", fontsize=20,
              fontweight="bold", color=colour, gid=TAG)   # name centred over the map
-    ax = fig.add_axes([1 - w - 0.004, y0, w, h], label=TAG, zorder=100)   # logo at the right corner
+    ax = fig.add_axes([left, y0, w, h], label=TAG, zorder=100)   # logo at the map's top-left corner
     ax.imshow(img, interpolation="nearest")
     ax.set_axis_off()
 
