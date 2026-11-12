@@ -153,6 +153,7 @@ def plot_lead(ds, lead, out):
         ax.set_title(panel(fig, ax, ds, f, lead))
         draw_boundaries(ax, ds)
     fig.suptitle(_title(ds, f, lead))
+    fig.masrainman_center = list(axes.flat)   # logo in the middle of each map
     fig.tight_layout()
     fig.savefig(out, dpi=130, bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)
@@ -166,6 +167,7 @@ def plot_param(ds, lead, param, out):
     name = PARAMS[param](fig, ax, ds, f, lead)
     draw_boundaries(ax, ds)
     ax.set_title(f"{name}\n{_title(ds, f, lead)}", fontsize=12)
+    fig.masrainman_center = ax                # logo in the middle of the map
     fig.tight_layout()
     fig.savefig(out, dpi=120, bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)
@@ -193,6 +195,7 @@ def plot_rain_total(ds, hours, out):
     cb.ax.tick_params(labelsize=7)
     draw_boundaries(ax, ds)
     ax.set_title(f"Total rainfall, {total_label(hours)} (+0 to +{hours} h)\n{_title(ds, f, hours)}", fontsize=12)
+    fig.masrainman_center = ax                # logo in the middle of the map
     fig.tight_layout()
     fig.savefig(out, dpi=120, bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)

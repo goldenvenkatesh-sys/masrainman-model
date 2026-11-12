@@ -10,6 +10,10 @@ never cover the map, the titles or the colour bars. Otherwise they go inside the
 A figure can instead reserve a header band for them: set fig.masrainman_header = (y_centre, x_right) in
 figure fractions and the logo, then the name, are placed inside the figure, ending at x_right and vertically
 centred on y_centre, so they sit on the same line as the chart title (used by the MSLP maps).
+
+A map figure can instead ask for the logo in the middle of the map: set fig.masrainman_center to the map
+axes (or a list of them, one logo each). The logo and the name are then drawn as a see-through watermark
+centred on each map, so the rain underneath still shows (used by the AI model maps in plot.py).
 """
 import os
 
@@ -36,9 +40,38 @@ def _image(dark, height_px):
     return _images[key]
 
 
+CENTER_ALPHA = 0.45       # watermark opacity in the middle of the map
+CENTER_FRAC = 0.30        # watermark width as a share of the map width
+
+
+def add_center_logo(fig, axes, dpi=None):
+    """See-through logo with the name under it, centred on each map axes."""
+    r, g, b = fig.get_facecolor()[:3]
+    dark = 0.299 * r + 0.587 * g + 0.114 * b < 0.5
+    fw, fh = fig.get_size_inches()
+    for map_ax in (axes if isinstance(axes, (list, tuple)) else [axes]):
+        map_ax.apply_aspect()                    # the drawn map box (equal aspect shrinks it)
+        box = map_ax.get_position()
+        w = box.width * CENTER_FRAC
+        base = _image(dark, 400)
+        h = w * fw / fh * base.shape[0] / base.shape[1]
+        img = _image(dark, max(24, round(h * fh * (dpi or fig.dpi))))
+        xc, yc = box.x0 + box.width / 2, box.y0 + box.height / 2
+        ax = fig.add_axes([xc - w / 2, yc - h / 2 + h * 0.08, w, h], label=TAG, zorder=100)
+        ax.imshow(img, interpolation="nearest", alpha=CENTER_ALPHA)
+        ax.set_axis_off()
+        fig.text(xc, yc - h / 2 + h * 0.02, "MasRainman", ha="center", va="top",
+                 fontsize=max(10, 22 * box.width), fontweight="bold",
+                 color="white" if dark else "#1d63ba", alpha=CENTER_ALPHA + 0.1, gid=TAG, zorder=100)
+
+
 def add_logo(fig, outside=True, dpi=None):
     """Add the logo and name to `fig` once (again after fig.clf())."""
     if any(a.get_label() == TAG for a in fig.axes):
+        return
+    center = getattr(fig, "masrainman_center", None)
+    if center is not None:                       # watermark in the middle of the map(s)
+        add_center_logo(fig, center, dpi)
         return
     r, g, b = fig.get_facecolor()[:3]
     dark = 0.299 * r + 0.587 * g + 0.114 * b < 0.5
