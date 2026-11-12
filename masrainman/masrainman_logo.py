@@ -62,6 +62,10 @@ def add_top_header(fig, map_ax, dpi=None):
         xc = box.x0 + box.width / 2
         top = max(box.y1, map_ax.title.get_window_extent(renderer).y1 / fig.bbox.height)
         logo_y = box.y1 + 0.004
+        title_left = map_ax.title.get_window_extent(renderer).x0 / fig.bbox.width
+        room = title_left - left - 0.006         # keep the logo clear of the title text
+        if 0 < room < w:
+            h, w = h * room / w, room
     y0 = top + 0.006                             # right on top of the title
     colour = "white" if dark else "#1d63ba"
     fig.text(xc, y0, "MasRainman", ha="center", va="bottom", fontsize=20,
