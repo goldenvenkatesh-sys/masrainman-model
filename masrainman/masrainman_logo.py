@@ -11,9 +11,9 @@ A figure can instead reserve a header band for them: set fig.masrainman_header =
 figure fractions and the logo, then the name, are placed inside the figure, ending at x_right and vertically
 centred on y_centre, so they sit on the same line as the chart title (used by the MSLP maps).
 
-A map figure can instead ask for the logo in the middle of the map: set fig.masrainman_center to the map
-axes (or a list of them, one logo each). The logo and the name are then drawn as a see-through watermark
-centred on each map, so the rain underneath still shows (used by the AI model maps in plot.py).
+A map figure can instead ask for a header: set fig.masrainman_top to the map axes and the logo, with the name
+beside it, is drawn centred above that map's title, at full colour (used by the AI model maps in plot.py;
+on a page with a figure title it goes above that title, centred on the page).
 """
 import os
 
@@ -40,38 +40,44 @@ def _image(dark, height_px):
     return _images[key]
 
 
-CENTER_ALPHA = 0.45       # watermark opacity in the middle of the map
-CENTER_FRAC = 0.30        # watermark width as a share of the map width
-
-
-def add_center_logo(fig, axes, dpi=None):
-    """See-through logo with the name under it, centred on each map axes."""
+def add_top_header(fig, map_ax, dpi=None):
+    """Logo + name, centred over the map, as a header above the title."""
     r, g, b = fig.get_facecolor()[:3]
     dark = 0.299 * r + 0.587 * g + 0.114 * b < 0.5
+    img = _image(dark, max(24, round(HEIGHT_IN * (dpi or fig.dpi))))
     fw, fh = fig.get_size_inches()
-    for map_ax in (axes if isinstance(axes, (list, tuple)) else [axes]):
+    h = HEIGHT_IN / fh
+    w = h * img.shape[1] / img.shape[0] * fh / fw
+    renderer = fig.canvas.get_renderer()
+    sup = getattr(fig, "_suptitle", None)
+    if sup is not None and sup.get_text():       # page title: centre on the page, above it
+        xc = 0.5
+        top = sup.get_window_extent(renderer).y1 / fig.bbox.height
+    else:
         map_ax.apply_aspect()                    # the drawn map box (equal aspect shrinks it)
         box = map_ax.get_position()
-        w = box.width * CENTER_FRAC
-        base = _image(dark, 400)
-        h = w * fw / fh * base.shape[0] / base.shape[1]
-        img = _image(dark, max(24, round(h * fh * (dpi or fig.dpi))))
-        xc, yc = box.x0 + box.width / 2, box.y0 + box.height / 2
-        ax = fig.add_axes([xc - w / 2, yc - h / 2 + h * 0.08, w, h], label=TAG, zorder=100)
-        ax.imshow(img, interpolation="nearest", alpha=CENTER_ALPHA)
-        ax.set_axis_off()
-        fig.text(xc, yc - h / 2 + h * 0.02, "MasRainman", ha="center", va="top",
-                 fontsize=max(10, 22 * box.width), fontweight="bold",
-                 color="white" if dark else "#1d63ba", alpha=CENTER_ALPHA + 0.1, gid=TAG, zorder=100)
+        xc = box.x0 + box.width / 2
+        top = max(box.y1, map_ax.title.get_window_extent(renderer).y1 / fig.bbox.height)
+    y0 = top + 0.012
+    colour = "white" if dark else "#1d63ba"
+    name = fig.text(0, y0 + h * 0.5, "MasRainman", ha="left", va="center", fontsize=20,
+                    fontweight="bold", color=colour, gid=TAG)
+    name_w = name.get_window_extent(renderer).width / fig.bbox.width
+    gap = 0.012
+    x0 = xc - (w + gap + name_w) / 2             # logo + gap + name, centred as one group
+    ax = fig.add_axes([x0, y0, w, h], label=TAG, zorder=100)
+    ax.imshow(img, interpolation="nearest")
+    ax.set_axis_off()
+    name.set_x(x0 + w + gap)
 
 
 def add_logo(fig, outside=True, dpi=None):
     """Add the logo and name to `fig` once (again after fig.clf())."""
     if any(a.get_label() == TAG for a in fig.axes):
         return
-    center = getattr(fig, "masrainman_center", None)
-    if center is not None:                       # watermark in the middle of the map(s)
-        add_center_logo(fig, center, dpi)
+    top = getattr(fig, "masrainman_top", None)
+    if top is not None:                          # header centred above the map
+        add_top_header(fig, top, dpi)
         return
     r, g, b = fig.get_facecolor()[:3]
     dark = 0.299 * r + 0.587 * g + 0.114 * b < 0.5
