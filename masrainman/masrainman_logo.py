@@ -52,6 +52,7 @@ def add_top_header(fig, map_ax, dpi=None):
     sup = getattr(fig, "_suptitle", None)
     map_ax.apply_aspect()
     left = map_ax.get_position().x0
+    logo_y = None                                # logo bottom: just above the map box
     if sup is not None and sup.get_text():       # page title: centre on the page, above it
         xc, left = 0.5, 0.004
         top = sup.get_window_extent(renderer).y1 / fig.bbox.height
@@ -60,11 +61,12 @@ def add_top_header(fig, map_ax, dpi=None):
         box = map_ax.get_position()
         xc = box.x0 + box.width / 2
         top = max(box.y1, map_ax.title.get_window_extent(renderer).y1 / fig.bbox.height)
+        logo_y = box.y1 + 0.004
     y0 = top + 0.006                             # right on top of the title
     colour = "white" if dark else "#1d63ba"
     fig.text(xc, y0, "MasRainman", ha="center", va="bottom", fontsize=20,
              fontweight="bold", color=colour, gid=TAG)   # name centred over the map
-    ax = fig.add_axes([left, y0, w, h], label=TAG, zorder=100)   # logo at the map's top-left corner
+    ax = fig.add_axes([left, y0 if logo_y is None else logo_y, w, h], label=TAG, zorder=100)   # logo at the map's top-left corner
     ax.imshow(img, interpolation="nearest")
     ax.set_axis_off()
 
