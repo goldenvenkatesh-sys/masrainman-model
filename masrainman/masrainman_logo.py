@@ -11,8 +11,8 @@ A figure can instead reserve a header band for them: set fig.masrainman_header =
 figure fractions and the logo, then the name, are placed inside the figure, ending at x_right and vertically
 centred on y_centre, so they sit on the same line as the chart title (used by the MSLP maps).
 
-A map figure can instead ask for a header: set fig.masrainman_top to the map axes and the logo, with the name
-beside it, is drawn centred above that map's title, at full colour (used by the AI model maps in plot.py;
+A map figure can instead ask for a header: set fig.masrainman_top to the map axes and a header line is drawn
+above that map's title: the name centred over the map, the logo at the right corner (used by the AI model maps in plot.py;
 on a page with a figure title it goes above that title, centred on the page).
 """
 import os
@@ -58,17 +58,16 @@ def add_top_header(fig, map_ax, dpi=None):
         box = map_ax.get_position()
         xc = box.x0 + box.width / 2
         top = max(box.y1, map_ax.title.get_window_extent(renderer).y1 / fig.bbox.height)
+    for a in fig.axes:                           # also clear the colour bar (and its end arrow)
+        if a.get_label() != TAG:
+            top = max(top, a.get_tightbbox(renderer).y1 / fig.bbox.height)
     y0 = top + 0.012
     colour = "white" if dark else "#1d63ba"
-    name = fig.text(0, y0 + h * 0.5, "MasRainman", ha="left", va="center", fontsize=20,
-                    fontweight="bold", color=colour, gid=TAG)
-    name_w = name.get_window_extent(renderer).width / fig.bbox.width
-    gap = 0.012
-    x0 = xc - (w + gap + name_w) / 2             # logo + gap + name, centred as one group
-    ax = fig.add_axes([x0, y0, w, h], label=TAG, zorder=100)
+    fig.text(xc, y0 + h * 0.5, "MasRainman", ha="center", va="center", fontsize=20,
+             fontweight="bold", color=colour, gid=TAG)   # name centred over the map
+    ax = fig.add_axes([1 - w - 0.004, y0, w, h], label=TAG, zorder=100)   # logo at the right corner
     ax.imshow(img, interpolation="nearest")
     ax.set_axis_off()
-    name.set_x(x0 + w + gap)
 
 
 def add_logo(fig, outside=True, dpi=None):
